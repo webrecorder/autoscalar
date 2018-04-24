@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+    scalar:
+        build: ./scalar
+        image: dynpreserve/scalar
+
+    pywb:
+        build: ./pywb
+        image: dynpreserve/pywb
+
+
+
+

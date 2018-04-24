@@ -1,0 +1,13 @@
+debug: true
+
+collections:
+    live: $live
+
+recorder: live
+
+autoindex: 30
+
+proxy:
+    coll: live
+    use_banner: false
+

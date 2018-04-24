@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+    driver:
+        build: ./driver
+        depends_on:
+            - shepherd
+
+        ports:
+            - 8375:8375
+
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+
+
+    redis:
+        image: redis:3.2.4
+
+    shepherd:
+        image: oldwebtoday/shepherd
+
+        command: uwsgi uwsgi.ini --mount /=/shepherd/main.py
+
+        environment:
+            - REDIS_BROWSER_URL=redis://redis/0
+            - CLUSTER_NAME=scalar_shepherd
+            - NETWORK_NAME=scalar_default
+            - IDLE_TIMEOUT=300
+            #- AUDIO_TYPE=opus
+            - CONTAINER_EXPIRE_SECS=1200
+
+            #- PROXY_HOST=pywb
+            - PROXY_PORT=8080
+            - PROXY_GET_CA=http://wsgiprox/download/pem
+
+            - SCREEN_WIDTH=1280
+            - SCREEN_HEIGHT=800
+
+        depends_on:
+            - redis
+
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+
+        ports:
+            - 9020:9020
+
+networks:
+    default:
+        driver: bridge
+

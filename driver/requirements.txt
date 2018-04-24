@@ -1,0 +1,8 @@
+gevent
+requests
+websocket
+gevent-websocket
+websocket-client
+redis
+bottle
+docker
