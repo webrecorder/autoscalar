@@ -6,3 +6,4 @@ websocket-client
 redis
 bottle
 docker
+jinja2

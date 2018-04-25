@@ -1,20 +1,25 @@
-FROM webrecorder/pywb
+FROM webrecorder/pywb:cond
 
 USER root
 RUN pip install fakeredis redis
 
-WORKDIR /app
-RUN chown archivist /app
+#RUN mkdir /app && chown archivist /app
 
-USER archivist
+ENV REDIS_URL=redis://redis/0
 
 ADD *.py /app/
 ADD uwsgi.ini /app/
 ADD config.yaml /app/
 
-RUN wb-manager init store
+RUN mkdir -p /data/warcs
 
-ENV REDIS_URL=redis://redis/0
+#USER archivist
 
-CMD uwsgi uwsgi.ini
+WORKDIR /data/warcs
+
+ENV PYWB_CONFIG_FILE=/app/config.yaml
+
+ADD run.sh /app/
+
+CMD /app/run.sh
 

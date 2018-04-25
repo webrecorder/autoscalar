@@ -3,6 +3,15 @@ debug: true
 collections:
     live: $live
 
+    combined:
+        sequence:
+            - name: scalar
+              index: live_filter
+
+            - name: store
+              index: ./collections/store/indexes/
+              archive_paths: ./collections/store/archive/
+
 recorder: live
 
 autoindex: 30

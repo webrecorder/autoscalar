@@ -79,18 +79,34 @@ class ScalarBook(object):
             import traceback
             traceback.print_exc()
 
-    def load_book_init_cmd(self):
-        url = self.BOOK_URL.format(self.base_url)
-
+    def test_book_url(self, url):
         try:
-            res = self.sesh.get(url, params={'format': 'json'})
+            res = self.sesh.get(url + '/rdf', params={'format': 'json'})
 
             data = res.json()
 
-            base_info = data[self.base_url]
+            assert data[url]
+
+            return data
         except Exception as e:
-            print(e)
             return None
+
+    def load_book_init_cmd(self):
+        url = self.base_url
+
+        if url.endswith('/index'):
+            url = url.rsplit('/', 1)[0]
+
+        data = self.test_book_url(url)
+        if not data:
+            url = url.rsplit('/', 1)[0]
+            data = self.test_book_url(url)
+            if not data:
+                return []
+
+        self.base_url = url
+
+        base_info = data[self.base_url]
 
         try:
             for n, v in data.items():
@@ -116,18 +132,13 @@ class ScalarBook(object):
             self.subtitle = ''
 
         def quote_esc(val):
-            #return '"' + val.replace("'", "''") + '"'
             return val.replace("'", "''")
 
         cmdlist = [self.name, path, slug, self.title, self.subtitle, self.desc]
 
-        #return ['bash', '-x', '/tmp/import.sh'] + [quote_esc(cmd) for cmd in cmdlist]
         return ['/tmp/import.sh'] + [quote_esc(cmd) for cmd in cmdlist]
 
-        #return '"{0}" "{1}" "{2}" "{3}" "{4}" "{5}"'.format(
-        #      self.name, path, slug, self.title, self.subtitle, self.desc)
-
-    def load_media(self, num_results):
+    def load_media(self, num_results=100):
         url = self.MEDIA_URL.format(self.base_url)
 
         start = 0
@@ -150,6 +161,7 @@ class ScalarBook(object):
         print('Done')
         print('')
         print('\n'.join(self.urls))
+        print('NUM: ' + str(len(self.urls)))
 
     def parse_media(self, data):
         for n, v in data.items():
@@ -160,9 +172,15 @@ class ScalarBook(object):
             for prop_data in urls:
                 if prop_data.get('type') == 'uri':
                     value = prop_data.get('value')
-                    if value and not value.startswith(self.internal_url):
+                    if not value:
+                        continue
+
+                    if value.startswith(self.internal_url):
+                        load_url = value
+                    else:
                         load_url = n
-                        self.urls.append(load_url)
+
+                    self.urls.append(load_url)
 
 def load1():
     return ScalarBook('http://blackquotidian.com/anvc/black-quotidian')
@@ -176,6 +194,10 @@ def load2():
 def load3():
     return ScalarBook('http://scalar.usc.edu/works/re-visualizing-care')
 
+if __name__ == '__main__':
+    import sys
+    book = ScalarBook(sys.argv[1])
+    print(' '.join(book.load_book_init_cmd()))
 
 #scalar_export = load3()
 

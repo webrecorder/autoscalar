@@ -1,50 +1,32 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+{% extends "base.html" %}
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
-
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://code.jquery.com/jquery-3.2.1.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/js/bootstrap.min.js" integrity="sha384-a5N7Y/aK3qNeh15eJKGWxsqtnX/wWdSZSKp+81YjTmS15nvnvxKHuzaWwXHDli+4" crossorigin="anonymous"></script>
-    <script src="/static/main.js"></script>
-
-    <title>Scalar Preserve</title>
-  </head>
-  <body>
+{% block body %}
     <div class="container">
         <div class="card text-center">
-          <div class="card-header">Scalar Server Web Archive</div>
+          <div class="card-header">Browse Preserved Scalar Archive</div>
           <div class="card-body">
-            <form id="new-archive" class="form-group">
-            <div class="input-group mb-3">
-            <label class="sr-only" for="url">Url</label>
-            <input type="text" id="new-url" name="url" class="form-control" placeholder="Enter a new Scalar url to preserve">
-            <div class="input-group-append">
-                <button type="submit" class="btn btn-primary">New Archive</button>
-            </div>
+            <form id="new-archive" class="form-inline">
+
+                <select class="custom-select">
+                    <option selected>Open this select menu</option>
+                    <option value="1">One</option>
+                    <option value="2">Two</option>
+                    <option value="3">Three</option>
+                </select>
+            <button type="submit" class="btn btn-primary">Launch</button>
             </form>
           </div>
-          <div class="row">
-            <div class="col-md-12">
-              <iframe style="width: 100%; height: 600px;" id="import-browser"></iframe>
-            </div>
-          </div>
-        </div>
+       </div>
         <div class="card text-center">
-          <div class="row">
-            <div class="col-md-12">
-              <iframe style="width: 100%; height: 600px;" id="auto-1"></iframe>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-12">
+                <iframe style="width: 100%; height: 600px;" id="auto-1"></iframe>
+              </div>
             </div>
           </div>
         </div>
     </div>
-  </body>
-</html>
+
+{% endblock %}
 

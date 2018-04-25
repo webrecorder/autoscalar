@@ -7,10 +7,11 @@ import docker
 import base64
 import time
 import os
+import requests
 
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
-from bottle import debug, default_app, request, view, TEMPLATE_PATH, static_file
+from bottle import debug, default_app, request, jinja2_view, TEMPLATE_PATH, static_file
 from scalarbook import ScalarBook
 from autobrowser import AutoBrowser, AutoTab
 
@@ -18,7 +19,19 @@ from autobrowser import AutoBrowser, AutoTab
 # ============================================================================
 class Main(object):
     GSESH = 'ssesh:{0}'
-    BQ = 'url_q:{0}'
+
+    USER_IMAGE_PREFIX = 'dynpreserve-image/'
+
+    SCALAR_BASE_IMAGE = 'dynpreserve/scalar'
+    PYWB_IMAGE = 'dynpreserve/pywb'
+
+    START_URL_LABEL = 'dyn.start_url'
+
+    VOL_PREFIX = 'dynpreserve-'
+
+    NETWORK_NAME = 'scalar_default'
+
+    REDIS_URL = 'redis://redis/2'
 
     def __init__(self):
         debug(True)
@@ -27,7 +40,9 @@ class Main(object):
                             datefmt='%Y-%m-%d %H:%M:%S',
                             level=logging.WARN)
 
-        self.redis = redis.StrictRedis.from_url('redis://redis/2',
+        logging.getLogger('autobrowser').setLevel(logging.DEBUG)
+
+        self.redis = redis.StrictRedis.from_url(self.REDIS_URL,
                                                 decode_responses=True)
 
         self.app = default_app()
@@ -42,49 +57,119 @@ class Main(object):
     def c_hostname(self, container):
         return container.id[:12]
 
-    def launch_group(self):
+    def launch_group(self, url=None, image_name=None):
         id = self.sesh_id()
         id_key = self.GSESH.format(id)
+        print('Group Id: ' + id)
 
-        print('New Group Id: ' + id)
+        if image_name:
+            try:
+                image = self.client.images.get(self.USER_IMAGE_PREFIX + image_name)
+                url = image.labels[self.START_URL_LABEL]
 
-        scalar = self.client.containers.run('dynpreserve/scalar',
-                                             detach=True,
-                                             network='scalar_default',
-                                             auto_remove=True)
+            except Exception as e:
+                return {'error': str(e)}
+
+        else:
+            if not url:
+                return {'error': 'url_missing'}
+
+            image_name = self.SCALAR_BASE_IMAGE
+
+        self.redis.hset(id_key, 'start_url', url)
+
+        volumes = {self.VOL_PREFIX + id: {'bind': '/data', 'mode': 'rw'}}
+
+        scalar = self.client.containers.run(image_name,
+                                            detach=True,
+                                            network=self.NETWORK_NAME,
+                                            auto_remove=True,
+                                            volumes=volumes)
 
         self.redis.hset(id_key, 'scalar_id', scalar.id)
 
-        pywb = self.client.containers.run('dynpreserve/pywb',
-                                           detach=True,
-                                           auto_remove=True,
-                                           network='scalar_default',
-                                           environment={'SCALAR_HOST': self.c_hostname(scalar)})
-                                           #volumes_from=scalar.short_id)
+        parts = urlsplit(url)
+
+        local_url = 'http://' + self.c_hostname(scalar) + os.path.dirname(parts.path)
+
+        filter_url = parts.scheme + '://' + parts.netloc
+
+        pywb_env = {'SCALAR_HOST': 'http://' + self.c_hostname(scalar),
+                    'PYWB_FILTER_PREFIX': filter_url}
+
+        pywb = self.client.containers.run(self.PYWB_IMAGE,
+                                          detach=True,
+                                          auto_remove=True,
+                                          network=self.NETWORK_NAME,
+                                          environment=pywb_env,
+                                          volumes=volumes)
 
         self.redis.hset(id_key, 'pywb_id', self.c_hostname(pywb))
 
+        self.wait_for_load(self.c_hostname(pywb), 8080)
+
         return {'id': id,
+                'local_url': local_url,
+                'url': url,
                 'scalar': scalar,
-                'pywb': pywb
+                'pywb': pywb,
                }
 
+    def wait_for_load(self, hostname, port):
+        while True:
+            try:
+                res = requests.get('http://{0}:{1}/'.format(hostname, port))
+                break
+            except Exception as e:
+                print(e)
+                print('Waiting for pywb init')
+                time.sleep(1)
+
     def delete_group(self, id):
-        id_key = self.GSESH.format(id=id)
+        id_key = self.GSESH.format(id)
 
         sesh_data = self.redis.hgetall(id_key)
 
         try:
             print('Removing scalar')
-            self.cli.containers.get(sesh_data['scalar_id']).remove(v=True, force=True)
-        except:
-            pass
+            self.client.containers.get(sesh_data['scalar_id']).remove(v=True, force=True)
+        except Exception as e:
+            print(e)
 
         try:
             print('Removing pywb')
-            self.cli.containers.get(sesh_data['pywb_id']).remove(v=True, force=True)
-        except:
-            pass
+            self.client.containers.get(sesh_data['pywb_id']).remove(v=True, force=True)
+        except Exception as e:
+            print(e)
+
+        try:
+            print('Removing volume')
+            volume = self.client.volumes.get(self.VOL_PREFIX + id)
+            volume.remove(force=True)
+        except Exception as e:
+            print(e)
+
+    def commit_image(self, id, image_name):
+        id_key = self.GSESH.format(id)
+
+        scalar_id = self.redis.hget(id_key, 'scalar_id')
+        if not scalar_id:
+            return {'error': 'id_not_found'}
+
+        url = self.redis.hget(id_key, 'start_url') or 'about:blank'
+        print(url)
+
+        conf = {'Labels': {self.START_URL_LABEL: url}}
+
+        try:
+            scalar = self.client.containers.get(scalar_id)
+            res = scalar.exec_run(['/tmp/commit.sh'])
+
+            scalar.commit(self.USER_IMAGE_PREFIX + image_name, conf=conf)
+            return {'new_id': image_name}
+
+        except Exception as e:
+            return {'error': str(e)}
 
     def new_scalar_archive(self, url):
         book = ScalarBook(url)
@@ -92,9 +177,11 @@ class Main(object):
         if not cmd:
             return {'error': 'not_valid_url'}
 
-        cinfo = self.launch_group()
+        cinfo = self.launch_group(url=url)
+        if 'error' in cinfo:
+            return cinfo
 
-        import_reqid = None#self.start_import(cinfo, book, cmd, url)
+        import_reqid = self.start_import(cinfo, book, cmd, url)
 
         auto_reqids = self.start_media_auto(cinfo, book, url)
 
@@ -103,28 +190,39 @@ class Main(object):
                 'autos': auto_reqids
                }
 
+    def load_existing_archive(self, image_name):
+        cinfo = self.launch_group(image_name=image_name)
+        if 'error' in cinfo:
+            return cinfo
+
+        browser = self.start_browser(cinfo, coll='combined',
+                                     url=cinfo['url'])
+
+        return {'id': cinfo['id'],
+                'reqid': browser.reqid
+               }
+
     def start_import(self, cinfo, book, cmd, url):
         self.init_scalar(cinfo['scalar'], book, cmd)
 
-        browser = self.start_browser(cinfo, url, 'import_q:', coll=None, tab_class=ImportTabDriver)
-        browser.queue_urls([self.get_starting_url(url, cinfo)])
+        browser = self.start_browser(cinfo, browser_q='import_q:',
+                                            tab_class=ImportTabDriver,
+                                            tab_opts={'base_url': url})
+
+        browser.queue_urls([cinfo['local_url']])
 
         return browser.reqid
 
     def start_media_auto(self, cinfo, book, url):
-        book.load_media(100)
+        book.load_media()
 
-        auto_1 = self.start_browser(cinfo, url, 'auto_q:', coll='store/record')
-        #auto_2 = self.start_browser(cinfo, url, 'auto_q:', coll='store/record')
+        auto_1 = self.start_browser(cinfo, browser_q='auto_q:',
+                                           coll='store/record')
 
         auto_1.queue_urls([url])
         auto_1.queue_urls(book.urls)
 
         return [auto_1.reqid]#, auto_2.reqid]
-
-    def get_starting_url(self, url, cinfo):
-        parts = urlsplit(url)
-        return 'http://' + self.c_hostname(cinfo['scalar']) + os.path.dirname(parts.path)
 
     def init_scalar(self, scalar, book, init_cmd):
         try:
@@ -136,8 +234,9 @@ class Main(object):
             print(e)
             return False
 
-    def start_browser(self, cinfo, url, browser_qt, coll=None, tab_class=AutoTab):
-        browser_q = browser_qt + cinfo['id']
+    def start_browser(self, cinfo, browser_q='replay_q:',
+                      url=None, coll=None, tab_class=AutoTab, tab_opts=None):
+        browser_q += cinfo['id']
 
         cdata = {}
 
@@ -145,31 +244,39 @@ class Main(object):
             cdata['coll'] = coll
             cdata['proxy_host'] = self.c_hostname(cinfo['pywb'])
 
-        #if links:
-        #    cdata['links'] = self.c_hostname(cinfo['scalar']) + ':scalar'
+        if url:
+            cdata['url'] = url
 
         browser = AutoBrowser(redis=self.redis,
                               browser_image='chrome:60',
                               browser_q=browser_q,
                               cdata=cdata,
                               tab_class=tab_class,
-                              tab_opts={'base_url': url})
+                              tab_opts=tab_opts)
 
         return browser
 
     def init_routes(self):
         @self.app.get('/')
-        @view('index.html')
+        @jinja2_view('index.html')
         def index():
             return {}
 
         @self.app.get('/archive/delete/<id>')
-        def start_scalar(id):
+        def delete_group(id):
             self.delete_group(id)
 
         @self.app.get('/archive/new/<url:path>')
-        def start_scalar(url):
+        def start_new_scalar(url):
             return self.new_scalar_archive(url)
+
+        @self.app.get('/archive/commit/<id>')
+        def commit_image(id):
+            return self.commit_image(id, request.query.get('name'))
+
+        @self.app.get('/archive/launch/<image_name>')
+        def launch_existing(image_name):
+            return self.load_existing_archive(image_name)
 
         @self.app.get('/static/<filename>')
         def server_static(filename):
@@ -223,7 +330,9 @@ function do_import() {
   console.log("Done!");
   clearInterval(waitLoad);
 
-  window.location.pathname = new URL(url).pathname;
+  var start_url = new URL(url);
+  start_url.hostname = window.location.hostname;
+  window.location.href = start_url.href;
 }
 
 """

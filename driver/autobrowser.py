@@ -13,6 +13,8 @@ import traceback
 import re
 from urllib.parse import quote
 
+logger = logging.getLogger('autobrowser')
+
 
 # ============================================================================
 class AutoBrowser(object):
@@ -54,7 +56,7 @@ class AutoBrowser(object):
 
         self.init(self.reqid)
 
-        logging.debug('Auto Browser Inited: ' + self.reqid)
+        logger.debug('Auto Browser Inited: ' + self.reqid)
 
     def listener(self, *args, **kwargs):
         pass
@@ -73,7 +75,7 @@ class AutoBrowser(object):
 
         self.init()
 
-        logging.debug('Auto Browser Re-Inited: ' + self.reqid)
+        logger.debug('Auto Browser Re-Inited: ' + self.reqid)
 
     def init(self, reqid=None):
         self.tabs = []
@@ -120,7 +122,7 @@ class AutoBrowser(object):
         filtered_tabs = []
 
         for tab in tabs:
-            logging.debug(str(tab))
+            logger.debug(str(tab))
 
             if require_ws and 'webSocketDebuggerUrl' not in tab:
                 continue
@@ -147,7 +149,7 @@ class AutoBrowser(object):
             res = requests.get(self.CDP_JSON_NEW.format(ip=ip))
             tab = res.json()
         except Exception as e:
-            logging.error('*** ' + str(e))
+            logger.error('*** ' + str(e))
 
         return tab
 
@@ -157,7 +159,7 @@ class AutoBrowser(object):
             res = requests.post(req_url, data=data)
 
         except Exception as e:
-            print(e)
+            logger.debug(str(e))
             msg = 'Browser <b>{0}</b> could not be requested'.format(browser_id)
             return {'error_message': msg}
 
@@ -181,20 +183,20 @@ class AutoBrowser(object):
             try:
                 res = res.json()
             except Exception as e:
-                logging.debug('Browser Init Failed: ' + str(e))
+                logger.debug('Browser Init Failed: ' + str(e))
                 return None, None, None
 
             if 'cmd_port' in res:
                 break
 
             #if reqid not in self.req_cache:
-            #    logging.debug('Waited too long, cancel browser launch')
+            #    logger.debug('Waited too long, cancel browser launch')
             #    return False
 
-            logging.debug('Waiting for Browser: ' + str(res))
+            logger.debug('Waiting for Browser: ' + str(res))
             time.sleep(self.WAIT_TIME)
 
-        logging.debug('Launched: ' + str(res))
+        logger.debug('Launched: ' + str(res))
 
         self.running = True
 
@@ -202,11 +204,11 @@ class AutoBrowser(object):
         while True:
             tab_datas = self.find_browser_tabs(res['ip'])
             if tab_datas:
-                logging.debug(str(tab_datas))
+                logger.debug(str(tab_datas))
                 break
 
             time.sleep(self.WAIT_TIME)
-            logging.debug('Waiting for first tab')
+            logger.debug('Waiting for first tab')
 
         # add other tabs
         for tab_count in range(self.num_tabs - 1):
@@ -223,7 +225,7 @@ class AutoBrowser(object):
             return
 
     def recv_pubsub_loop(self):
-        logging.debug('Start PubSub Listen')
+        logger.debug('Start PubSub Listen')
 
         for item in self.pubsub_listen():
             try:
@@ -231,7 +233,7 @@ class AutoBrowser(object):
                     continue
 
                 msg = json.loads(item['data'])
-                logging.debug(str(msg))
+                logger.debug(str(msg))
 
                 if msg['ws_type'] == 'remote_url':
                     pass
@@ -297,32 +299,37 @@ class AutoTab(object):
         gevent.spawn(self.recv_ws_loop)
 
         # quene next url!
-        self.queue_next()
+        self.queue_next(now=True)
 
     def _init_ws(self):
         self.ws = websocket.create_connection(self.tab_data['webSocketDebuggerUrl'])
         self.send_ws({"method": "Page.enable"})
         #self.send_ws({"method": "Runtime.enable"})
-        #logging.debug('Page.enable on ' + self.tab_data['webSocketDebuggerUrl'])
+        #self.send_ws({"method": "DOM.enable"})
+        #logger.debug('Page.enable on ' + self.tab_data['webSocketDebuggerUrl'])
 
     def replace_devtools(self):
         self._replaced_with_devtools = False
         while self.browser.running:
-            logging.debug('Waiting for devtools to close')
+            logger.debug('Waiting for devtools to close')
             time.sleep(5.0)
             try:
                 self._init_ws()
                 return
             except Exception as e:
-                logging.debug(str(e))
+                logger.debug(str(e))
 
-    def queue_next(self):
+    def queue_next(self, now=False):
         self._behavior_done = False
 
         # extend recording openness
         #self.auto.recording.is_open()
+        logger.debug('Queue Next')
 
-        gevent.spawn(self.wait_queue)
+        if now:
+            gevent.spawn(self.wait_queue)
+        else:
+            gevent.spawn_later(20, self.wait_queue)
 
     def already_recorded(self, url):
         if not self.index_check_url:
@@ -333,7 +340,7 @@ class AutoTab(object):
             res = requests.get(url)
             return res.text != ''
         except Exception as e:
-            logging.debug(str(e))
+            logger.debug(str(e))
             return False
 
     def should_visit(self, url):
@@ -343,13 +350,13 @@ class AutoTab(object):
             url = url.split('#', 1)[0]
 
         if self.already_recorded(url):
-            logging.debug('Skipping Dupe: ' + url)
+            logger.debug('Skipping Dupe: ' + url)
             return None
 
         if self.scopes:
             for scope in self.scopes:
                 if scope.search(url):
-                    logging.debug('In scope: ' + scope.pattern)
+                    logger.debug('In scope: ' + scope.pattern)
                     return url
 
             return None
@@ -371,7 +378,7 @@ class AutoTab(object):
                 break
 
         if not url_req:
-            logging.debug('Auto Running?: ' + str(self.browser.running))
+            logger.debug('Auto Running?: ' + str(self.browser.running))
             return
 
         def save_frame(resp):
@@ -380,7 +387,7 @@ class AutoTab(object):
                 self.frame_id = frame_id
 
         try:
-            logging.debug('Queuing Next: ' + str(url_req))
+            logger.debug('Queuing Next: ' + str(url_req))
 
             self.hops = url_req.get('hops', 0)
             self.curr_url = url_req['url']
@@ -391,12 +398,12 @@ class AutoTab(object):
             self.listener('tab_added', self.browser.reqid, self.tab_id, url_req['url'])
 
         except Exception as e:
-            logging.error(' *** ' + str(e))
+            logger.error(' *** ' + str(e))
             if url_req_data:
                 self.redis.rpush(self.browser_q, url_req_data)
 
     def recv_ws_loop(self):
-        logging.debug('Tab Loop Started')
+        logger.debug('Tab Loop Started')
         try:
             while self.browser.running:
                 try:
@@ -425,17 +432,17 @@ class AutoTab(object):
                         self.handle_InspectorDetached(resp)
 
                 except Exception as re:
-                    logging.warn('*** Error handling response')
-                    logging.warn(str(re))
+                    logger.warn('*** Error handling response')
+                    logger.warn(str(re))
 
-                #logging.debug(str(resp))
+                #logger.debug(str(resp))
 
         except Exception as e:
-            logging.error(str(e))
+            logger.error(str(e))
 
         finally:
             self.close()
-            logging.debug('Tab Loop Done')
+            logger.debug('Tab Loop Done')
 
     def behavior_done(self):
         if self._behavior_done:
@@ -452,8 +459,8 @@ class AutoTab(object):
         def handle_links(resp):
             links = json.loads(resp['result']['result']['value'])
 
-            #logging.debug('Links')
-            #logging.debug(str(links))
+            #logger.debug('Links')
+            #logger.debug(str(links))
 
             for link in links:
                 url_req = {'url': link}
@@ -473,9 +480,9 @@ class AutoTab(object):
             try:
                 callback(resp)
             except Exception as e:
-                logging.debug(str(e))
+                logger.debug(str(e))
         else:
-            logging.debug('No Callback found for: ' + str(resp['id']))
+            logger.debug('No Callback found for: ' + str(resp['id']))
 
     def handle_InspectorDetached(self, resp):
         if resp['params']['reason'] == 'replaced_with_devtools':
@@ -493,11 +500,11 @@ class AutoTab(object):
     def handle_done_loading(self):
         # if not html, continue
         if self.curr_mime != 'text/html':
-            self.queue_next()
+            self.queue_next(now=True)
             return
 
         if False and self.autoscroll:
-            logging.debug('AutoScroll Start')
+            logger.debug('AutoScroll Start')
             self.browser.send_pubsub({'ws_type': 'autoscroll'})
             gevent.spawn_later(30, self.behavior_done)
         else:
@@ -535,7 +542,7 @@ class AutoTab(object):
         if self.ws:
             self.ws.send(json.dumps(data))
         else:
-            logging.debug('WS Already Closed')
+            logger.debug('WS Already Closed')
 
     def eval(self, expr, callback=None):
         self.send_ws({"method": "Runtime.evaluate", "params": {"expression": expr}}, callback)

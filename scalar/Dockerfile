@@ -60,7 +60,11 @@ ENV MYSQL_INITDB_SKIP_TZINFO=1
 
 # run script
 COPY run.sh /tmp/
+
 COPY import.sh /tmp/
+
+COPY commit.sh /tmp/
+
 CMD /tmp/run.sh
 
 

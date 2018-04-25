@@ -7,6 +7,8 @@ $(function() {
 
       console.log(data);
 
+      $("#group-id").val(data.id);
+
       if (data.reqid) {
         console.log("inited: " + data.reqid);
         init_browser(data.reqid, "#import-browser");
@@ -20,6 +22,37 @@ $(function() {
 
     return true;
   });
+
+
+  $("#commit").click(function() {
+    $.ajax({"url": "/archive/commit/" + $("#group-id").val(),
+            "data": {"name": $("#image-name").val()},
+            "dataType": "json"}).done(function(data) {
+
+      console.log(data);
+    });
+    return true;
+  });
+
+
+  $("#launch").click(function() {
+    $.ajax({"url": "/archive/launch/" + $("#image-name").val(),
+            "data": {"url": $("#new-url").val()},
+            "dataType": "json"}).done(function(data) {
+
+      console.log(data);
+
+      if (data.reqid) {
+        init_browser(data.reqid, "#import-browser");
+      }
+    });
+    return true;
+  });
+
+
+
+
+
 });
 
 
