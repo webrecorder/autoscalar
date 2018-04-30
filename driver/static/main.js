@@ -1,3 +1,6 @@
+var group_id = "";
+
+
 $(function() {
   $("#new-archive").submit(function(event) {
     event.preventDefault();
@@ -7,7 +10,10 @@ $(function() {
 
       console.log(data);
 
-      $("#group-id").val(data.id);
+      group_id = data.id;
+
+      $("#commit button").attr("disabled", false);
+      $("#cancel").attr("disabled", false);
 
       if (data.reqid) {
         console.log("inited: " + data.reqid);
@@ -24,34 +30,46 @@ $(function() {
   });
 
 
-  $("#commit").click(function() {
-    $.ajax({"url": "/archive/commit/" + $("#group-id").val(),
+  $("#commit").submit(function(event) {
+    event.preventDefault();
+
+    $.ajax({"url": "/archive/commit/" + group_id,
             "data": {"name": $("#image-name").val()},
             "dataType": "json"}).done(function(data) {
 
       console.log(data);
     });
+
+    return true;
+  });
+
+  $("#cancel").click(function(event) {
+    event.preventDefault();
+
+    $.ajax({"url": "/archive/delete/" + group_id,
+            "dataType": "json"}).done(function(data) {
+
+      console.log(data);
+    });
+
     return true;
   });
 
 
-  $("#launch").click(function() {
+  $("#launch").submit(function(event) {
+    event.preventDefault();
+
     $.ajax({"url": "/archive/launch/" + $("#image-name").val(),
-            "data": {"url": $("#new-url").val()},
             "dataType": "json"}).done(function(data) {
 
       console.log(data);
 
       if (data.reqid) {
-        init_browser(data.reqid, "#import-browser");
+        init_browser(data.reqid, "#browser");
       }
     });
     return true;
   });
-
-
-
-
 
 });
 

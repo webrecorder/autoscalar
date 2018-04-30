@@ -20,7 +20,8 @@ from autobrowser import AutoBrowser, AutoTab
 class Main(object):
     GSESH = 'ssesh:{0}'
 
-    USER_IMAGE_PREFIX = 'dynpreserve-image/'
+    USER_IMAGE = 'dynpreserve/user-scalar:{0}'
+    USER_IMAGE_PREFIX = 'dynpreserve/user-scalar'
 
     SCALAR_BASE_IMAGE = 'dynpreserve/scalar'
     PYWB_IMAGE = 'dynpreserve/pywb'
@@ -63,8 +64,9 @@ class Main(object):
         print('Group Id: ' + id)
 
         if image_name:
+            image_name = self.USER_IMAGE.format(image_name)
             try:
-                image = self.client.images.get(self.USER_IMAGE_PREFIX + image_name)
+                image = self.client.images.get(image_name)
                 url = image.labels[self.START_URL_LABEL]
 
             except Exception as e:
@@ -125,6 +127,16 @@ class Main(object):
                 print('Waiting for pywb init')
                 time.sleep(1)
 
+    def list_images(self):
+        try:
+            images = self.client.images.list(name=self.USER_IMAGE_PREFIX)
+        except Exception as e:
+            return {'error': str(e)}
+
+        image_names = [image.tags[0].rsplit(':', 1)[1] for image in images]
+
+        return {'images': image_names}
+
     def delete_group(self, id):
         id_key = self.GSESH.format(id)
 
@@ -157,7 +169,6 @@ class Main(object):
             return {'error': 'id_not_found'}
 
         url = self.redis.hget(id_key, 'start_url') or 'about:blank'
-        print(url)
 
         conf = {'Labels': {self.START_URL_LABEL: url}}
 
@@ -165,7 +176,7 @@ class Main(object):
             scalar = self.client.containers.get(scalar_id)
             res = scalar.exec_run(['/tmp/commit.sh'])
 
-            scalar.commit(self.USER_IMAGE_PREFIX + image_name, conf=conf)
+            scalar.commit(self.USER_IMAGE.format(image_name), conf=conf)
             return {'new_id': image_name}
 
         except Exception as e:
@@ -177,13 +188,15 @@ class Main(object):
         if not cmd:
             return {'error': 'not_valid_url'}
 
+        url = book.base_url
+
         cinfo = self.launch_group(url=url)
         if 'error' in cinfo:
             return cinfo
 
         import_reqid = self.start_import(cinfo, book, cmd, url)
 
-        auto_reqids = self.start_media_auto(cinfo, book, url)
+        auto_reqids = []#self.start_media_auto(cinfo, book, url)
 
         return {'id': cinfo['id'],
                 'reqid': import_reqid,
@@ -195,7 +208,7 @@ class Main(object):
         if 'error' in cinfo:
             return cinfo
 
-        browser = self.start_browser(cinfo, coll='combined',
+        browser = self.start_browser(cinfo, prefix='/combined/id_/',
                                      url=cinfo['url'])
 
         return {'id': cinfo['id'],
@@ -209,6 +222,7 @@ class Main(object):
                                             tab_class=ImportTabDriver,
                                             tab_opts={'base_url': url})
 
+        print('LOCAL URL', cinfo['local_url'])
         browser.queue_urls([cinfo['local_url']])
 
         return browser.reqid
@@ -217,7 +231,7 @@ class Main(object):
         book.load_media()
 
         auto_1 = self.start_browser(cinfo, browser_q='auto_q:',
-                                           coll='store/record')
+                                           prefix='/store/record/bn_/')
 
         auto_1.queue_urls([url])
         auto_1.queue_urls(book.urls)
@@ -235,13 +249,13 @@ class Main(object):
             return False
 
     def start_browser(self, cinfo, browser_q='replay_q:',
-                      url=None, coll=None, tab_class=AutoTab, tab_opts=None):
+                      url=None, prefix=None, tab_class=AutoTab, tab_opts=None):
         browser_q += cinfo['id']
 
         cdata = {}
 
-        if coll:
-            cdata['coll'] = coll
+        if prefix:
+            cdata['pywb_prefix'] = prefix
             cdata['proxy_host'] = self.c_hostname(cinfo['pywb'])
 
         if url:
@@ -261,6 +275,16 @@ class Main(object):
         @jinja2_view('index.html')
         def index():
             return {}
+
+        @self.app.get('/launch')
+        @jinja2_view('launch.html')
+        def launch():
+            res = self.list_images()
+            return {'images': res.get('images', [])}
+
+        @self.app.get('/archive/list/images')
+        def list_images():
+            return self.list_images()
 
         @self.app.get('/archive/delete/<id>')
         def delete_group(id):
@@ -350,6 +374,7 @@ function do_import() {
 
     def handle_done_loading(self):
         if self.stage == self.INIT:
+            print('INIT')
             self.import_tab_url = self.curr_url + self.IMPORT_TAB_URL
 
             self.navigate_to(self.import_tab_url, self.LOGIN)

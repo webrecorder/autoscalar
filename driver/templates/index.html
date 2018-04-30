@@ -1,32 +1,57 @@
 {% extends "base.html" %}
 
 {% block body %}
-    <div class="container">
-        <div class="card text-center">
-          <div class="card-header">Browse Preserved Scalar Archive</div>
-          <div class="card-body">
+<div class="container">
+  <div class="card text-center">
+    <div class="card-header">New Scalar Server + Web Archive</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-8">
             <form id="new-archive" class="form-inline">
-
-                <select class="custom-select">
-                    <option selected>Open this select menu</option>
-                    <option value="1">One</option>
-                    <option value="2">Two</option>
-                    <option value="3">Three</option>
-                </select>
-            <button type="submit" class="btn btn-primary">Launch</button>
+              <div class="input-group">
+                <label class="sr-only" for="url">Url</label>
+                <input type="text" style="min-width: 400px" id="new-url" name="url" class="form-control" placeholder="http://... Enter a new Scalar url to preserve">
+                <div class="input-group-append">
+                  <button type="submit" class="btn btn-primary mr-3">New Archive</button>
+                </div>
+              </div>
+              <button id="cancel" class="btn btn-danger ml-3">Cancel</button>
             </form>
           </div>
-       </div>
-        <div class="card text-center">
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-12">
-                <iframe style="width: 100%; height: 600px;" id="auto-1"></iframe>
+          <div class="col-md-4">
+            <form id="commit" class="form-inline" style="display: inline">
+              <div class="input-group ml-3 mr-3">
+                <input type="text" id="image-name" name="image-name" value="test" class="form-control" placeholder="Image Name">
+                <div class="input-group-append">
+                  <button type="submit" class="btn btn-secondary">Commit Now</button>
+                </div>
               </div>
-            </div>
+            </form>
           </div>
         </div>
+      </div>
     </div>
 
-{% endblock %}
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-12">
+            <iframe style="width: 100%; height: 600px;" id="import-browser"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-12">
+            <iframe style="width: 100%; height: 600px;" id="auto-1"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {% endblock %}
 

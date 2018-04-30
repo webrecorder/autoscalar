@@ -27,9 +27,10 @@ class DynProxyPywb(FrontEndApp):
             self.redis = fakeredis.FakeStrictRedis()
 
     def proxy_route_request(self, url, environ):
-        coll = self.redis.hget('ip:' + environ['REMOTE_ADDR'], 'coll')
-        if coll:
-            return '/{0}/id_/{1}'.format(coll, url)
+        key = 'ip:' + environ['REMOTE_ADDR']
+        prefix = self.redis.hget(key, 'pywb_prefix')
+        if prefix:
+            return prefix + url
         else:
             return super(DynProxyPywb, self).proxy_route_request(url, environ)
 
