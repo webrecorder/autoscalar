@@ -1,7 +1,9 @@
 import gevent.monkey; gevent.monkey.patch_all()
 from gevent.pywsgi import WSGIServer
+from geventwebsocket.handler import WebSocketHandler
 
 import logging
+import json
 import redis
 import docker
 import base64
@@ -33,6 +35,8 @@ class Main(object):
     NETWORK_NAME = 'scalar_default'
 
     REDIS_URL = 'redis://redis/2'
+
+    NUM_BROWSERS = 4
 
     def __init__(self):
         debug(True)
@@ -182,26 +186,54 @@ class Main(object):
         except Exception as e:
             return {'error': str(e)}
 
-    def new_scalar_archive(self, url):
+    def new_scalar_archive(self, url, ws):
+        self.send_ws(ws, {'msg': 'Check Scalar Url...'})
         book = ScalarBook(url)
         cmd = book.load_book_init_cmd()
         if not cmd:
-            return {'error': 'not_valid_url'}
+            self.send_ws(ws, {'msg': 'Not a valid Scalar Url', 'error': 'not_valid'})
+            return
 
         url = book.base_url
 
         cinfo = self.launch_group(url=url)
         if 'error' in cinfo:
-            return cinfo
+            cinfo['msg'] = 'Error Launching'
+            self.send_ws(ws, cinfo)
+            return
 
+        self.send_ws(ws, {'msg': 'Starting Import...', 'launch_id': cinfo['id']})
         import_reqid = self.start_import(cinfo, book, cmd, url)
 
-        auto_reqids = []#self.start_media_auto(cinfo, book, url)
+        self.send_ws(ws, {'import_reqid': import_reqid})
 
-        return {'id': cinfo['id'],
-                'reqid': import_reqid,
-                'autos': auto_reqids
-               }
+        self.send_ws(ws, {'msg': 'Starting Auto Browsers...'})
+        auto_res = self.start_media_auto(cinfo, book, url, self.NUM_BROWSERS)
+
+        self.send_ws(ws, {'auto_reqids': auto_res['auto_reqids']})
+
+        while True:
+            remaining = self.redis.llen(auto_res['browser_q'])
+            self.send_ws(ws, {'msg': 'Crawling Media: {0} urls left'.format(remaining)})
+            if remaining == 0:
+                break
+
+            time.sleep(5)
+
+        image_name = url.rsplit('/', 1)[-1]
+        self.send_ws(ws, {'msg': 'Committing to Image {0}...'.format(image_name)})
+
+        self.commit_image(cinfo['id'], image_name)
+
+        self.send_ws(ws, {'msg': 'Deleting Launch Group'})
+
+        self.delete_group(cinfo['id'])
+
+        self.send_ws(ws, {'msg': 'Done! Image Committed: {0}'.format(image_name)})
+
+
+    def send_ws(self, ws, data):
+        ws.send(json.dumps(data))
 
     def load_existing_archive(self, image_name):
         cinfo = self.launch_group(image_name=image_name)
@@ -227,16 +259,24 @@ class Main(object):
 
         return browser.reqid
 
-    def start_media_auto(self, cinfo, book, url):
+    def start_media_auto(self, cinfo, book, url, count):
         book.load_media()
 
-        auto_1 = self.start_browser(cinfo, browser_q='auto_q:',
+        ids = []
+        first = True
+
+        for i in range(count):
+            autob = self.start_browser(cinfo, browser_q='auto_q:',
                                            prefix='/store/record/bn_/')
+            if first:
+                autob.queue_urls([url])
+                #autob.queue_urls(book.urls)
+                first = False
 
-        auto_1.queue_urls([url])
-        auto_1.queue_urls(book.urls)
+            ids.append(autob.reqid)
 
-        return [auto_1.reqid]#, auto_2.reqid]
+        return {'auto_reqids': ids,
+                'browser_q': 'auto_q:' + cinfo['id']}
 
     def init_scalar(self, scalar, book, init_cmd):
         try:
@@ -292,7 +332,9 @@ class Main(object):
 
         @self.app.get('/archive/new/<url:path>')
         def start_new_scalar(url):
-            return self.new_scalar_archive(url)
+            ws = request.environ['wsgi.websocket']
+            self.new_scalar_archive(url, ws)
+            ws.close()
 
         @self.app.get('/archive/commit/<id>')
         def commit_image(id):
@@ -402,6 +444,6 @@ function do_import() {
 # ============================================================================
 if __name__ == "__main__":
     main = Main()
-    WSGIServer('0.0.0.0:8375', main.app).serve_forever()
+    WSGIServer('0.0.0.0:8375', main.app, handler_class=WebSocketHandler).serve_forever()
 
 

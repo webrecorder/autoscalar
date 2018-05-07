@@ -1,0 +1,9 @@
+{% if not env.pywb_proxy_magic %}
+<!-- default banner, create through js -->
+<script src='{{ host_prefix }}/{{ static_path }}/default_banner.js'> </script>
+<link rel='stylesheet' href='{{ host_prefix }}/{{ static_path }}/default_banner.css'/>
+{% else %}
+
+<script src="{{ host_prefix }}/{{ static_path }}/detect_media.js"> </script>
+
+{% endif %}

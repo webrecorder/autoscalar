@@ -10,5 +10,7 @@ ADD templates/ /app/templates/
 ADD static/ /app/static/
 ADD *.py /app/
 
+ADD detect_media.js /app/scripts/detect_media.js
+
 CMD python -u main.py
 

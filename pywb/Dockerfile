@@ -1,4 +1,4 @@
-FROM webrecorder/pywb:cond
+FROM webrecorder/pywb
 
 USER root
 RUN pip install fakeredis redis
@@ -20,6 +20,9 @@ WORKDIR /data/warcs
 ENV PYWB_CONFIG_FILE=/app/config.yaml
 
 ADD run.sh /app/
+
+ADD ./templates/ /app/templates/
+ADD ./static/ /app/static/
 
 CMD /app/run.sh
 

@@ -175,10 +175,11 @@ class ScalarBook(object):
                     if not value:
                         continue
 
-                    if value.startswith(self.internal_url):
-                        load_url = value
-                    else:
-                        load_url = n
+                    #local_url = self.internal_url.rsplit('/', 1)[0]
+                    #if value.startswith(local_url):
+                    #    load_url = value
+                    #else:
+                    load_url = n
 
                     self.urls.append(load_url)
 

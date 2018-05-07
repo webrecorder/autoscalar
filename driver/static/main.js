@@ -5,26 +5,45 @@ $(function() {
   $("#new-archive").submit(function(event) {
     event.preventDefault();
 
-    $.ajax({"url": "/archive/new/" + $("#new-url").val(),
-            "dataType": "json"}).done(function(data, status, xhr) {
+    //$.ajax({"url": "/archive/new/" + $("#new-url").val(),
+    //        "dataType": "json"}).done(function(data, status, xhr) {
+
+    var ws_url = "ws://" + window.location.host + "/archive/new/" + $("#new-url").val();
+    console.log(ws_url);
+
+    var ws = new WebSocket(ws_url);
+
+    ws.onmessage = function(event) {
+      var data = JSON.parse(event.data);
 
       console.log(data);
 
-      group_id = data.id;
-
-      $("#commit button").attr("disabled", false);
-      $("#cancel").attr("disabled", false);
-
-      if (data.reqid) {
-        console.log("inited: " + data.reqid);
-        init_browser(data.reqid, "#import-browser");
+      if (data.msg) {
+        $("#status").text(data.msg);
       }
 
-      if (data.autos) {
-        init_browser(data.autos[0], "#auto-1");
-//        init_browser(data.autos[1], "#auto-2");
+      if (data.error) {
+        return;
       }
-    });
+
+      if (data.launch_id) {
+        group_id = data.launch_id;
+
+        $("#commit button").attr("disabled", false);
+        $("#cancel").attr("disabled", false);
+      }
+
+      if (data.import_reqid) {
+        console.log("inited: " + data.import_reqid);
+        init_browser(data.import_reqid, "#import-browser");
+      }
+
+      if (data.auto_reqids) {
+        for (var i in data.auto_reqids) {
+          init_browser(data.auto_reqids[i], "#auto-" + i);
+        }
+      }
+    };
 
     return true;
   });
@@ -34,7 +53,7 @@ $(function() {
     event.preventDefault();
 
     $.ajax({"url": "/archive/commit/" + group_id,
-            "data": {"name": $("#image-name").val()},
+            "data": {"name": $("#run-image-name").val()},
             "dataType": "json"}).done(function(data) {
 
       console.log(data);
@@ -59,10 +78,12 @@ $(function() {
   $("#launch").submit(function(event) {
     event.preventDefault();
 
-    $.ajax({"url": "/archive/launch/" + $("#image-name").val(),
+    $.ajax({"url": "/archive/launch/" + $("#run-image-name").val(),
             "dataType": "json"}).done(function(data) {
 
       console.log(data);
+
+      group_id = data.id;
 
       if (data.reqid) {
         init_browser(data.reqid, "#browser");
