@@ -96,7 +96,8 @@ class Main(object):
 
         parts = urlsplit(url)
 
-        local_url = 'http://' + self.c_hostname(scalar) + os.path.dirname(parts.path)
+        local_scalar_host = self.c_hostname(scalar)
+        local_url = 'http://' + local_scalar_host + os.path.dirname(parts.path)
 
         filter_url = parts.scheme + '://' + parts.netloc
 
@@ -115,6 +116,7 @@ class Main(object):
         self.wait_for_load(self.c_hostname(pywb), 8080)
 
         return {'id': id,
+                'scalar_host': local_scalar_host,
                 'local_url': local_url,
                 'url': url,
                 'scalar': scalar,
@@ -215,7 +217,7 @@ class Main(object):
         while True:
             remaining = self.redis.llen(auto_res['browser_q'])
             self.send_ws(ws, {'msg': 'Crawling Media: {0} urls left'.format(remaining)})
-            if remaining == 0:
+            if remaining == 0 and book.new_url != None:
                 break
 
             time.sleep(5)
@@ -240,7 +242,7 @@ class Main(object):
         if 'error' in cinfo:
             return cinfo
 
-        browser = self.start_browser(cinfo, prefix='/combined/id_/',
+        browser = self.start_browser(cinfo, prefix='/combined/bn_/',
                                      url=cinfo['url'])
 
         return {'id': cinfo['id'],
@@ -250,9 +252,14 @@ class Main(object):
     def start_import(self, cinfo, book, cmd, url):
         self.init_scalar(cinfo['scalar'], book, cmd)
 
+        tab_opts = {'base_url': url,
+                    'book': book,
+                    'scalar_host': cinfo['scalar_host']
+                   }
+
         browser = self.start_browser(cinfo, browser_q='import_q:',
                                             tab_class=ImportTabDriver,
-                                            tab_opts={'base_url': url})
+                                            tab_opts=tab_opts)
 
         print('LOCAL URL', cinfo['local_url'])
         browser.queue_urls([cinfo['local_url']])
@@ -270,7 +277,7 @@ class Main(object):
                                            prefix='/store/record/bn_/')
             if first:
                 autob.queue_urls([url])
-                #autob.queue_urls(book.urls)
+                autob.queue_urls(book.urls)
                 first = False
 
             ids.append(autob.reqid)
@@ -356,6 +363,7 @@ class ImportTabDriver(AutoTab):
     LOGGED_IN_REDIR = '3'
     LOGGED_IN = '4'
     IMPORTING = '5'
+    DONE = '6'
 
     LOGIN_SCRIPT = """
 document.querySelector("form input[name='email']").setAttribute("value", "scalar@example.com");
@@ -369,6 +377,8 @@ doc.querySelector("#urlform input.source_url").setAttribute("value", url);
 doc.querySelector("#urlform button[type=submit]").click();
 
 var waitLoad = setInterval(do_load, 500);
+
+window.scrollBy(0, 1000);
 
 function do_load() {
   var rdf = doc.querySelector("#source_rdf");
@@ -401,6 +411,8 @@ function do_import() {
   window.location.href = start_url.href;
 }
 
+
+
 """
 
     IMPORT_TAB_URL = '/system/dashboard?book_id=1&zone=transfer#tabs-transfer'
@@ -408,6 +420,8 @@ function do_import() {
     def __init__(self, *args, **kwargs):
         self.stage = self.INIT
         self.base_url = kwargs.get('base_url')
+        self.book = kwargs.get('book')
+        self.scalar_host = kwargs.get('scalar_host')
         super(ImportTabDriver, self).__init__(*args, **kwargs)
 
     def navigate_to(self, url, stage):
@@ -438,6 +452,19 @@ function do_import() {
             self.eval(self.IMPORT_SCRIPT % self.base_url)
 
         elif self.stage == self.IMPORTING:
+            print('IMPORTING TOC')
+            try:
+                self.book.import_toc(target_host=self.scalar_host,
+                                     username='scalar@example.com',
+                                     password='')
+            except:
+                import traceback
+                traceback.print_exc()
+
+            self.stage = self.DONE
+
+            #self.browser.queue_urls([book.new_url])
+            self.eval('window.location.reload()')
             print('DONE IMPORTING')
 
 

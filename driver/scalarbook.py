@@ -20,6 +20,12 @@ class ScalarBook(object):
 
     DESC_FIELD = 'http://purl.org/dc/terms/description'
 
+    REF_FIELD = 'http://purl.org/dc/terms/references'
+
+    URN_FIELD = 'http://scalar.usc.edu/2012/01/scalar-ns#urn'
+
+    VERSION_FIELD = 'http://scalar.usc.edu/2012/01/scalar-ns#version'
+
     EXT_TITLE = re.compile('([^<]+)[^:]+:\s*([^<]+)')
 
     def __init__(self, base_url, internal_url='',
@@ -36,6 +42,8 @@ class ScalarBook(object):
 
         self.urls = []
         self.internal_url = internal_url or self.base_url
+
+        self.new_url = None
 
     def do_register(self, name=None):
         self.name = name or self.name
@@ -54,41 +62,46 @@ class ScalarBook(object):
 
         return res.url == self.base_url
 
-    def do_login(self):
+    def do_login(self, login_url, email='', password=''):
+        email = email or self.email
+        password = password or self.password
+
         try:
-            if not self.email or not self.password:
-                return False
+            #if not email or not password:
+            #    return False
 
-            res = self.sesh.get(self.base_url)
-            if not res.history or 'login' not in res.url:
-                return False
+            #res = self.sesh.get(login_url)
+            #if not res.history or 'login' not in res.url:
+            #    return False
 
-            post_url = res.url.split('?')[0]
+            #post_url = res.url.split('?')[0]
             data = {'action': 'do_login',
-                    'redirect_url': self.base_url,
+                    'redirect_url': '/',
                     'msg': 1,
-                    'email': self.email,
-                    'password': self.password
+                    'email': email,
+                    'password': password
                    }
 
-            res = self.sesh.post(post_url, data=data, allow_redirects=False)
-            if res.headers['Location'] == self.base_url:
+            res = self.sesh.post(login_url, data=data, allow_redirects=False)
+            if res.headers['Location'] == '/':
                 return True
 
         except:
             import traceback
             traceback.print_exc()
 
-    def test_book_url(self, url):
+    def get_book_rdf_json(self, url, suffix='/rdf', assert_url=True):
         try:
-            res = self.sesh.get(url + '/rdf', params={'format': 'json'})
+            res = self.sesh.get(url + suffix, params={'format': 'json'})
 
             data = res.json()
 
-            assert data[url]
+            if assert_url:
+                assert data[url]
 
             return data
         except Exception as e:
+            print(e)
             return None
 
     def load_book_init_cmd(self):
@@ -97,10 +110,10 @@ class ScalarBook(object):
         if url.endswith('/index'):
             url = url.rsplit('/', 1)[0]
 
-        data = self.test_book_url(url)
+        data = self.get_book_rdf_json(url)
         if not data:
             url = url.rsplit('/', 1)[0]
-            data = self.test_book_url(url)
+            data = self.get_book_rdf_json(url)
             if not data:
                 return []
 
@@ -183,6 +196,72 @@ class ScalarBook(object):
 
                     self.urls.append(load_url)
 
+    def import_toc(self, target_host, username, password):
+        toc_list = self.load_toc()
+
+        if not toc_list:
+            return
+
+        parts = urlsplit(self.base_url)
+
+        find_prefix = parts.scheme + '://' + parts.netloc
+        replace_prefix = 'http://' + target_host
+
+        new_url = self.base_url.replace(find_prefix, replace_prefix)
+        print(new_url)
+
+        toc_list = [page.replace(find_prefix, replace_prefix) for page in toc_list]
+        print(toc_list)
+
+        id_list = self.get_toc_ids(new_url, toc_list)
+        print('DATA', id_list)
+
+        login_url = os.path.dirname(new_url) + '/system/login'
+        dashboard_url = os.path.dirname(new_url) + '/system/dashboard'
+
+        res = self.do_login(login_url, username, password)
+        print('LOGIN', login_url, res)
+
+        print(dashboard_url)
+
+        res = self.sesh.post(dashboard_url, data=id_list)
+
+        self.new_url = new_url
+
+    def load_toc(self):
+        data = self.get_book_rdf_json(self.base_url)
+
+        toc = data.get(self.base_url + '/toc')
+
+        toc = toc.get(self.REF_FIELD, [])
+
+        toc_list = []
+
+        for entry in toc:
+            url = entry.get('value').split('#', 1)[0]
+            toc_list.append(url)
+
+        return toc_list
+
+    def get_toc_ids(self, target_url, toc_list):
+        data = self.get_book_rdf_json(target_url, suffix='/rdf/instancesof/page', assert_url=False)
+
+        #id_list = 'action=do_save_style&book_id=1'
+        id_list = [('action', 'do_save_style'), ('book_id', '1')]
+
+        # Match ids
+        for url in toc_list:
+            try:
+                version_url = data[url][self.VERSION_FIELD][0]['value']
+                print('V', version_url)
+                id = data[version_url][self.URN_FIELD][0]['value'].rsplit(':', 1)[-1]
+                #id_list += '&book_version_{0}=1'.format(id)
+                id_list.append(('book_version_' + id, '1'))
+            except Exception as e:
+                print(e)
+
+        return id_list
+
 def load1():
     return ScalarBook('http://blackquotidian.com/anvc/black-quotidian')
 
@@ -198,7 +277,8 @@ def load3():
 if __name__ == '__main__':
     import sys
     book = ScalarBook(sys.argv[1])
-    print(' '.join(book.load_book_init_cmd()))
+    book.load_toc()
+    #print(' '.join(book.load_book_init_cmd()))
 
 #scalar_export = load3()
 

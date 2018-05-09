@@ -1,21 +1,21 @@
 (function() {
   document.addEventListener("readystatechange", function() {
     if (document.readyState != "complete") { return; }
-    
+
     var rules = [
       {rx: /w\.soundcloud\.com/,
        suffix: "&auto_play=true",
       },
-      
+
       {rx: /player\.vimeo\.com/,
        suffix: "&autoplay=1"},
-      
+
       {rx: /youtube\.com\/embed\//,
        suffix: "&autoplay=1"},
     ];
 
     var appendSuffix = null;
-    
+
     for (var i in rules) {
       if (window.location.href.search(rules[i].rx) >= 0) {
         //if (window.location.href.split(rules[i].suffix).length <= min) {

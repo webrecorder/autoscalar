@@ -28,6 +28,8 @@ class AutoBrowser(object):
 
     WAIT_TIME = 0.5
 
+    NEW_PAGE_WAIT_TIME = 40.0
+
     def __init__(self, redis, browser_image, browser_q,
                  reqid=None, cdata=None, num_tabs=1,
                  pubsub=False, tab_class=None, tab_opts=None):
@@ -329,7 +331,7 @@ class AutoTab(object):
         if now:
             gevent.spawn(self.wait_queue)
         else:
-            gevent.spawn_later(20, self.wait_queue)
+            gevent.spawn_later(self.browser.NEW_PAGE_WAIT_TIME, self.wait_queue)
 
     def already_recorded(self, url):
         if not self.index_check_url:
