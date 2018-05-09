@@ -5,19 +5,20 @@ RUN pip install fakeredis redis
 
 #RUN mkdir /app && chown archivist /app
 
-ENV REDIS_URL=redis://redis/0
-
-ADD *.py /app/
-ADD uwsgi.ini /app/
-ADD config.yaml /app/
+ENV CLIENT_REDIS_URL=redis://redis/0
+ENV QUEUE_REDIS_URL=redis://redis/2
 
 RUN mkdir -p /data/warcs
-
-#USER archivist
 
 WORKDIR /data/warcs
 
 ENV PYWB_CONFIG_FILE=/app/config.yaml
+
+ADD config.yaml /app/
+
+ADD *.py /app/
+ADD uwsgi.ini /app/
+ADD capture.ini /app/
 
 ADD run.sh /app/
 

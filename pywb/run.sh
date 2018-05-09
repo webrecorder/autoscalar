@@ -9,5 +9,11 @@ fi
 cp /app/templates/banner.html /data/warcs/templates/
 cp -r /app/static/* /data/warcs/static/
 
-python -u /app/dynproxyapp.py
+#python -u /app/captureworker.py &
+
+#python -u /app/dynproxyapp.py
+
+uwsgi /app/capture.ini &
+
+uwsgi /app/uwsgi.ini
 

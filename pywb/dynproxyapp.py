@@ -1,3 +1,5 @@
+from gevent.monkey import patch_all; patch_all()
+
 from pywb.apps.frontendapp import FrontEndApp
 
 import os
@@ -20,8 +22,8 @@ class DynProxyPywb(FrontEndApp):
         super(DynProxyPywb, self).__init__(config_file=config_file,
                                            custom_config=custom_config)
         try:
-            print('REDIS: ' + os.environ.get('REDIS_URL', ''))
-            self.redis = redis.StrictRedis.from_url(os.environ['REDIS_URL'], decode_responses=True)
+            print('REDIS: ' + os.environ.get('CLIENT_REDIS_URL', ''))
+            self.redis = redis.StrictRedis.from_url(os.environ['CLIENT_REDIS_URL'], decode_responses=True)
         except Exception as e:
             print('Default to FakeRedis: ' + str(e))
             self.redis = fakeredis.FakeStrictRedis()
@@ -77,6 +79,9 @@ class WaybackCli(ReplayCli):
 
 #=============================================================================
 def wayback(args=None):
+    #import gevent
+    #gevent.spawn(CaptureWorker(8080))
+
     return WaybackCli(args=args,
                       default_port=8080,
                       desc='pywb Wayback Machine Server').run()
@@ -85,3 +90,6 @@ def wayback(args=None):
 #=============================================================================
 if __name__ == "__main__":
     wayback()
+else:
+    application = DynProxyPywb()
+

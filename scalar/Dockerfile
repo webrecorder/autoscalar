@@ -59,6 +59,8 @@ ENV MYSQL_DATABASE=scalar
 ENV MYSQL_INITDB_SKIP_TZINFO=1
 
 # run script
+COPY restart-run.sh /tmp/
+
 COPY run.sh /tmp/
 
 COPY import.sh /tmp/

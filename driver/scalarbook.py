@@ -14,6 +14,8 @@ class ScalarBook(object):
 
     SOURCE_LOC = 'http://simile.mit.edu/2003/10/ontologies/artstor#sourceLocation'
 
+    THUMB_URL = 'http://simile.mit.edu/2003/10/ontologies/artstor#thumbnail'
+
     TITLE_FIELD = 'http://purl.org/dc/terms/title'
 
     NAME_FIELD = 'http://xmlns.com/foaf/0.1/name'
@@ -40,8 +42,8 @@ class ScalarBook(object):
 
         self.sesh = requests.Session()
 
-        self.urls = []
-        self.internal_url = internal_url or self.base_url
+        self.external_urls = []
+        self.media_urls = []
 
         self.new_url = None
 
@@ -163,6 +165,7 @@ class ScalarBook(object):
         while True:
             params['start'] = start
             print('Loading: {0} to {1}'.format(start, start + num_results))
+            print(url)
             res = self.sesh.get(url, params=params)
             data = res.json()
             if not data:
@@ -173,14 +176,20 @@ class ScalarBook(object):
 
         print('Done')
         print('')
-        print('\n'.join(self.urls))
-        print('NUM: ' + str(len(self.urls)))
+        print('\n'.join(self.external_urls))
+        print('NUM EXTERNAL: ' + str(len(self.external_urls)))
+        print('NUM MEDIA: ' + str(len(self.media_urls)))
 
     def parse_media(self, data):
+        parent_dir = os.path.dirname(self.base_url)
+
         for n, v in data.items():
             urls = v.get(self.SOURCE_LOC)
             if not urls:
                 urls = v.get(self.URL_PROP, [])
+
+            if not urls:
+                urls = v.get(self.THUMB_URL, [])
 
             for prop_data in urls:
                 if prop_data.get('type') == 'uri':
@@ -188,13 +197,11 @@ class ScalarBook(object):
                     if not value:
                         continue
 
-                    #local_url = self.internal_url.rsplit('/', 1)[0]
-                    #if value.startswith(local_url):
-                    #    load_url = value
-                    #else:
-                    load_url = n
+                    if value.startswith(parent_dir):
+                        self.media_urls.append(value)
+                    else:
+                        self.external_urls.append(n)
 
-                    self.urls.append(load_url)
 
     def import_toc(self, target_host, username, password):
         toc_list = self.load_toc()

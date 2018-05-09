@@ -36,7 +36,7 @@ class Main(object):
 
     REDIS_URL = 'redis://redis/2'
 
-    NUM_BROWSERS = 4
+    NUM_BROWSERS = 2
 
     def __init__(self):
         debug(True)
@@ -96,13 +96,17 @@ class Main(object):
 
         parts = urlsplit(url)
 
-        local_scalar_host = self.c_hostname(scalar)
-        local_url = 'http://' + local_scalar_host + os.path.dirname(parts.path)
+        scalar_host = self.c_hostname(scalar)
+        local_url = 'http://' + scalar_host + os.path.dirname(parts.path)
 
         filter_url = parts.scheme + '://' + parts.netloc
 
-        pywb_env = {'SCALAR_HOST': 'http://' + self.c_hostname(scalar),
-                    'PYWB_FILTER_PREFIX': filter_url}
+        media_q = 'q:media_' + id
+
+        pywb_env = {'SCALAR_HOST': 'http://' + scalar_host,
+                    'PYWB_FILTER_PREFIX': filter_url,
+                    'MEDIA_Q': media_q
+                   }
 
         pywb = self.client.containers.run(self.PYWB_IMAGE,
                                           detach=True,
@@ -111,16 +115,20 @@ class Main(object):
                                           environment=pywb_env,
                                           volumes=volumes)
 
-        self.redis.hset(id_key, 'pywb_id', self.c_hostname(pywb))
+        pywb_host = self.c_hostname(pywb)
 
-        self.wait_for_load(self.c_hostname(pywb), 8080)
+        self.redis.hset(id_key, 'pywb_id', pywb_host)
+
+        self.wait_for_load(pywb_host, 8080)
 
         return {'id': id,
-                'scalar_host': local_scalar_host,
+                'pywb_host': pywb_host,
+                'scalar_host': scalar_host,
                 'local_url': local_url,
                 'url': url,
                 'scalar': scalar,
                 'pywb': pywb,
+                'media_q': media_q
                }
 
     def wait_for_load(self, hostname, port):
@@ -188,6 +196,22 @@ class Main(object):
         except Exception as e:
             return {'error': str(e)}
 
+    def wait_for_queue(self, ws, queue, msg, total):
+        last_remaining = None
+
+        while True:
+            remaining = self.redis.llen(queue)
+            if remaining == last_remaining:
+                continue
+
+            last_remaining = remaining
+            done = total - remaining
+            self.send_ws(ws, {'msg': msg.format(done=done, total=total)})
+            if remaining == 0:
+                break
+
+            time.sleep(1.0)
+
     def new_scalar_archive(self, url, ws):
         self.send_ws(ws, {'msg': 'Check Scalar Url...'})
         book = ScalarBook(url)
@@ -204,21 +228,25 @@ class Main(object):
             self.send_ws(ws, cinfo)
             return
 
+        self.send_ws(ws, {'msg': 'Loading And Queing Media...'})
+        self.queue_media(book, cinfo)
+
         self.send_ws(ws, {'msg': 'Starting Import...', 'launch_id': cinfo['id']})
         import_reqid = self.start_import(cinfo, book, cmd, url)
 
         self.send_ws(ws, {'import_reqid': import_reqid})
+
+        self.wait_for_queue(ws, cinfo['media_q'], 'Crawling Media: {done} of {total}', len(book.media_urls))
 
         self.send_ws(ws, {'msg': 'Starting Auto Browsers...'})
         auto_res = self.start_media_auto(cinfo, book, url, self.NUM_BROWSERS)
 
         self.send_ws(ws, {'auto_reqids': auto_res['auto_reqids']})
 
-        while True:
-            remaining = self.redis.llen(auto_res['browser_q'])
-            self.send_ws(ws, {'msg': 'Crawling Media: {0} urls left'.format(remaining)})
-            if remaining == 0 and book.new_url != None:
-                break
+        self.wait_for_queue(ws, auto_res['browser_q'], 'Capturing External Links: {done} of {total}', len(book.external_urls))
+
+        while book.new_url == None:
+            self.send_ws(ws, {'msg': 'Waiting for TOC Import'})
 
             time.sleep(5)
 
@@ -233,6 +261,12 @@ class Main(object):
 
         self.send_ws(ws, {'msg': 'Done! Image Committed: {0}'.format(image_name)})
 
+    def queue_media(self, book, cinfo):
+        book.load_media()
+
+        for url in book.media_urls:
+            data = json.dumps({'url': url})
+            self.redis.rpush(cinfo['media_q'], data)
 
     def send_ws(self, ws, data):
         ws.send(json.dumps(data))
@@ -267,8 +301,6 @@ class Main(object):
         return browser.reqid
 
     def start_media_auto(self, cinfo, book, url, count):
-        book.load_media()
-
         ids = []
         first = True
 
@@ -277,7 +309,7 @@ class Main(object):
                                            prefix='/store/record/bn_/')
             if first:
                 autob.queue_urls([url])
-                autob.queue_urls(book.urls)
+                autob.queue_urls(book.external_urls)
                 first = False
 
             ids.append(autob.reqid)
@@ -303,7 +335,7 @@ class Main(object):
 
         if prefix:
             cdata['pywb_prefix'] = prefix
-            cdata['proxy_host'] = self.c_hostname(cinfo['pywb'])
+            cdata['proxy_host'] = cinfo['pywb_host']
 
         if url:
             cdata['url'] = url
