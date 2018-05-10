@@ -16,6 +16,7 @@ class CaptureWorker(object):
         self.sesh = requests.Session()
 
         self.media_q = os.environ['MEDIA_Q']
+        self.browser_q = os.environ['BROWSER_Q']
 
         self.host_prefix = 'http://localhost:' + str(port)
         self.running = True
@@ -33,22 +34,39 @@ class CaptureWorker(object):
                 time.sleep(1)
 
     def run(self):
-        _, res = self.redis.blpop(self.media_q)
-        res = json.loads(res)
+        print('Waiting for url')
+        _, data = self.redis.blpop(self.media_q)
+        res = json.loads(data)
+        self.sesh = requests.Session()
 
         try:
             print('*** Crawl Worker Loading: ' + res['url'])
-            r = requests.get(self.host_prefix + '/store/record/id_/' + res['url'], stream=True)
-            try:
-                r.raw.read(1024)
-                r.raw.close()
-            except:
-                pass
-            #for chunk in r.iter_content(8192):
-            #    pass
+            req_url = self.host_prefix + '/store/record/id_/' + res['url']
+            with self.sesh.get(req_url, stream=True) as r:
+                # requeue with 'html_url' if current page may be html
+                if res.get('html_url'):
+                    if self.maybe_html(r.headers.get('Content-Type', ''), res['url']):
+                        self.redis.rpush(self.browser_q, data)
+                        print('REQUEING',  res['html_url'])
 
         except:
             traceback.print_exc()
+
+    def maybe_html(self, content_type, url):
+        content_type = content_type.split(';', 1)[0].rstrip()
+        if content_type in ('text/html', 'application/x-html'):
+            return True
+
+        print('MIME', content_type)
+
+        if content_type:
+            return False
+
+        # assume if no ext then likely html
+        if '.' not in url:
+            return True
+        else:
+            return False
 
 
 # ============================================================================

@@ -101,11 +101,13 @@ class Main(object):
 
         filter_url = parts.scheme + '://' + parts.netloc
 
-        media_q = 'q:media_' + id
+        media_q = 'media_q:' + id
+        browser_q = 'browser_q:' + id
 
         pywb_env = {'SCALAR_HOST': 'http://' + scalar_host,
                     'PYWB_FILTER_PREFIX': filter_url,
-                    'MEDIA_Q': media_q
+                    'MEDIA_Q': media_q,
+                    'BROWSER_Q': browser_q,
                    }
 
         pywb = self.client.containers.run(self.PYWB_IMAGE,
@@ -128,7 +130,8 @@ class Main(object):
                 'url': url,
                 'scalar': scalar,
                 'pywb': pywb,
-                'media_q': media_q
+                'media_q': media_q,
+                'browser_q': browser_q,
                }
 
     def wait_for_load(self, hostname, port):
@@ -212,9 +215,9 @@ class Main(object):
 
             time.sleep(1.0)
 
-    def new_scalar_archive(self, url, ws):
+    def new_scalar_archive(self, url, ws, email='', password=''):
         self.send_ws(ws, {'msg': 'Check Scalar Url...'})
-        book = ScalarBook(url)
+        book = ScalarBook(url, email=email, password=password)
         cmd = book.load_book_init_cmd()
         if not cmd:
             self.send_ws(ws, {'msg': 'Not a valid Scalar Url', 'error': 'not_valid'})
@@ -236,17 +239,26 @@ class Main(object):
 
         self.send_ws(ws, {'import_reqid': import_reqid})
 
-        self.wait_for_queue(ws, cinfo['media_q'], 'Crawling Media: {done} of {total}', len(book.media_urls))
+        self.wait_for_queue(ws, cinfo['media_q'], 'Crawling Media: {done} of {total}', len(book.media_urls) +  len(book.external_urls))
 
-        self.send_ws(ws, {'msg': 'Starting Auto Browsers...'})
-        auto_res = self.start_media_auto(cinfo, book, url, self.NUM_BROWSERS)
+        #while not book.cookies:
+        #    print('Waiting for cookies')
+        #    time.sleep(5)
 
-        self.send_ws(ws, {'auto_reqids': auto_res['auto_reqids']})
+        browser_q_len = self.redis.llen(cinfo['browser_q'])
 
-        self.wait_for_queue(ws, auto_res['browser_q'], 'Capturing External Links: {done} of {total}', len(book.external_urls))
+        if browser_q_len > 0:
+            self.send_ws(ws, {'msg': 'Starting Auto Browsers...'})
+            auto_res = self.start_browser_auto(cinfo, book, url, self.NUM_BROWSERS)
+
+            self.send_ws(ws, {'auto_reqids': auto_res['auto_reqids']})
+
+            self.wait_for_queue(ws, auto_res['browser_q'], 'Capturing External Links: {done} of {total}', browser_q_len)
+        else:
+            self.send_ws(ws, {'msg': 'No Browser Auto Needed'})
 
         while book.new_url == None:
-            self.send_ws(ws, {'msg': 'Waiting for TOC Import'})
+            self.send_ws(ws, {'msg': 'Waiting for Scalar Import'})
 
             time.sleep(5)
 
@@ -263,6 +275,12 @@ class Main(object):
 
     def queue_media(self, book, cinfo):
         book.load_media()
+
+        for url, html_url in book.external_urls:
+            data = json.dumps({'url': url, 'html_url': html_url, 'hops': 0})
+            self.redis.rpush(cinfo['media_q'], data)
+            #data = json.dumps({'url': html_url, 'hops': 0})
+            #self.redis.rpush(cinfo['browser_q'], data)
 
         for url in book.media_urls:
             data = json.dumps({'url': url})
@@ -288,34 +306,45 @@ class Main(object):
 
         tab_opts = {'base_url': url,
                     'book': book,
-                    'scalar_host': cinfo['scalar_host']
+                    'scalar_host': cinfo['scalar_host'],
+                    'local_base_url': cinfo['local_url'],
                    }
 
         browser = self.start_browser(cinfo, browser_q='import_q:',
                                             tab_class=ImportTabDriver,
                                             tab_opts=tab_opts)
 
-        print('LOCAL URL', cinfo['local_url'])
-        browser.queue_urls([cinfo['local_url']])
+        if book.email and book.password:
+            browser.queue_urls([url])
+        else:
+            browser.queue_urls([cinfo['local_url']])
 
         return browser.reqid
 
-    def start_media_auto(self, cinfo, book, url, count):
+    def start_browser_auto(self, cinfo, book, url, count):
         ids = []
         first = True
 
+        if book.cookies:
+            tab_opts = {'cookies': book.cookies}
+        else:
+            tab_opts = {}
+
+        print('TAB OPTS', tab_opts)
+
         for i in range(count):
-            autob = self.start_browser(cinfo, browser_q='auto_q:',
-                                           prefix='/store/record/bn_/')
-            if first:
-                autob.queue_urls([url])
-                autob.queue_urls(book.external_urls)
-                first = False
+            autob = self.start_browser(cinfo, browser_q='browser_q:',
+                                       prefix='/store/record/bn_/',
+                                       tab_opts=tab_opts)
+            #if first:
+                #autob.queue_urls([url])
+                #autob.queue_urls(book.external_urls)
+                #first = False
 
             ids.append(autob.reqid)
 
         return {'auto_reqids': ids,
-                'browser_q': 'auto_q:' + cinfo['id']}
+                'browser_q': 'browser_q:' + cinfo['id']}
 
     def init_scalar(self, scalar, book, init_cmd):
         try:
@@ -369,10 +398,14 @@ class Main(object):
         def delete_group(id):
             self.delete_group(id)
 
-        @self.app.get('/archive/new/<url:path>')
-        def start_new_scalar(url):
+        @self.app.get('/archive/new')
+        def start_new_scalar():
+            url = request.query.get('url')
+            email = request.query.get('email', '')
+            password = request.query.get('password', '')
+
             ws = request.environ['wsgi.websocket']
-            self.new_scalar_archive(url, ws)
+            self.new_scalar_archive(url, ws, email, password)
             ws.close()
 
         @self.app.get('/archive/commit/<id>')
@@ -390,12 +423,21 @@ class Main(object):
 
 # ============================================================================
 class ImportTabDriver(AutoTab):
-    INIT = '1'
-    LOGIN = '2'
-    LOGGED_IN_REDIR = '3'
-    LOGGED_IN = '4'
-    IMPORTING = '5'
-    DONE = '6'
+    LOGIN_REMOTE = '10'
+    LOGIN_REMOTE_DONE = '20'
+
+    INIT = '30'
+    LOGIN = '40'
+    LOGGED_IN_REDIR = '50'
+    LOGGED_IN = '60'
+    IMPORTING = '70'
+    DONE = '80'
+
+    LOGIN_REMOTE_SCRIPT = """
+document.querySelector("form input[name='email']").setAttribute("value", "{email}");
+document.querySelector("form input[name='password']").setAttribute("value", "{password}");
+document.querySelector("form").submit();
+"""
 
     LOGIN_SCRIPT = """
 document.querySelector("form input[name='email']").setAttribute("value", "scalar@example.com");
@@ -450,10 +492,16 @@ function do_import() {
     IMPORT_TAB_URL = '/system/dashboard?book_id=1&zone=transfer#tabs-transfer'
 
     def __init__(self, *args, **kwargs):
-        self.stage = self.INIT
         self.base_url = kwargs.get('base_url')
         self.book = kwargs.get('book')
         self.scalar_host = kwargs.get('scalar_host')
+        self.local_url = kwargs.get('local_base_url')
+
+        if self.book.email and self.book.password:
+            self.stage = self.LOGIN_REMOTE
+        else:
+            self.stage = self.INIT
+
         super(ImportTabDriver, self).__init__(*args, **kwargs)
 
     def navigate_to(self, url, stage):
@@ -461,14 +509,33 @@ function do_import() {
         self.stage = stage
 
     def handle_done_loading(self):
-        if self.stage == self.INIT:
-            print('INIT')
-            self.import_tab_url = self.curr_url + self.IMPORT_TAB_URL
+        if self.stage == self.LOGIN_REMOTE:
+            print('LOGIN_REMOTE', self.curr_url)
+            self.stage = self.LOGIN_REMOTE_DONE
+            self.eval(self.LOGIN_REMOTE_SCRIPT.format(email=self.book.email, password=self.book.password))
+
+        elif self.stage == self.LOGIN_REMOTE_DONE:
+            print('LOGIN_REMOTE_DONE', self.curr_url)
+            self.navigate_to(self.local_url, self.INIT)
+
+            def save_cookies(resp):
+                cookies = resp['result']['cookies']
+                print('GOT COOKIES', cookies)
+
+                self.book.cookies = cookies
+
+            self.send_ws({"method": "Network.getCookies",
+                          "params": {"urls": [self.curr_url]}},
+                          save_cookies)
+
+        elif self.stage == self.INIT:
+            print('INIT', self.curr_url)
+            self.import_tab_url = self.local_url + self.IMPORT_TAB_URL
 
             self.navigate_to(self.import_tab_url, self.LOGIN)
 
         elif self.stage == self.LOGIN:
-            print('LOGIN')
+            print('LOGIN', self.curr_url)
             self.stage = self.LOGGED_IN_REDIR
             self.eval(self.LOGIN_SCRIPT)
 

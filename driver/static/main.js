@@ -8,7 +8,11 @@ $(function() {
     //$.ajax({"url": "/archive/new/" + $("#new-url").val(),
     //        "dataType": "json"}).done(function(data, status, xhr) {
 
-    var ws_url = "ws://" + window.location.host + "/archive/new/" + $("#new-url").val();
+    var ws_url = "ws://" + window.location.host + "/archive/new";
+    ws_url += "?" + $.param({"url": $("#new-url").val(),
+                             "email": $("#email").val(),
+                             "password": $("#password").val()
+                            })
     console.log(ws_url);
 
     var ws = new WebSocket(ws_url);

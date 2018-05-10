@@ -46,6 +46,7 @@ class ScalarBook(object):
         self.media_urls = []
 
         self.new_url = None
+        self.cookies = None
 
     def do_register(self, name=None):
         self.name = name or self.name
@@ -64,19 +65,22 @@ class ScalarBook(object):
 
         return res.url == self.base_url
 
+    def test_login(self):
+        if not self.email and not self.password:
+            return False
+
+        res = self.sesh.get(self.base_url)
+        if not res.history or 'login' not in res.url:
+            return False
+
+        login_url = res.url.split('?')[0]
+        return self.do_login(login_url)
+
     def do_login(self, login_url, email='', password=''):
         email = email or self.email
         password = password or self.password
 
         try:
-            #if not email or not password:
-            #    return False
-
-            #res = self.sesh.get(login_url)
-            #if not res.history or 'login' not in res.url:
-            #    return False
-
-            #post_url = res.url.split('?')[0]
             data = {'action': 'do_login',
                     'redirect_url': '/',
                     'msg': 1,
@@ -91,6 +95,8 @@ class ScalarBook(object):
         except:
             import traceback
             traceback.print_exc()
+
+        return False
 
     def get_book_rdf_json(self, url, suffix='/rdf', assert_url=True):
         try:
@@ -107,6 +113,8 @@ class ScalarBook(object):
             return None
 
     def load_book_init_cmd(self):
+        self.test_login()
+
         url = self.base_url
 
         if url.endswith('/index'):
@@ -136,8 +144,8 @@ class ScalarBook(object):
 
         # path
         parts = urlsplit(self.base_url)
-        path = os.path.dirname(parts.path)
-        slug = os.path.basename(parts.path)
+        path = os.path.dirname(parts.path) or '/'
+        slug = os.path.basename(parts.path) or 'book'
 
         m = self.EXT_TITLE.match(self.title)
         if m:
@@ -176,7 +184,7 @@ class ScalarBook(object):
 
         print('Done')
         print('')
-        print('\n'.join(self.external_urls))
+        print('\n'.join([u + ' ' + u2 for u, u2 in self.external_urls]))
         print('NUM EXTERNAL: ' + str(len(self.external_urls)))
         print('NUM MEDIA: ' + str(len(self.media_urls)))
 
@@ -200,7 +208,7 @@ class ScalarBook(object):
                     if value.startswith(parent_dir):
                         self.media_urls.append(value)
                     else:
-                        self.external_urls.append(n)
+                        self.external_urls.append((value, n))
 
 
     def import_toc(self, target_host, username, password):

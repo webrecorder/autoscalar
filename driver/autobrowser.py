@@ -124,7 +124,7 @@ class AutoBrowser(object):
         filtered_tabs = []
 
         for tab in tabs:
-            logger.debug(str(tab))
+            #logger.debug(str(tab))
 
             if require_ws and 'webSocketDebuggerUrl' not in tab:
                 continue
@@ -298,6 +298,21 @@ class AutoTab(object):
 
         self._init_ws()
 
+        cookies = kwargs.get('cookies')
+        if cookies:
+            logger.debug('SENDING COOKIES: ' + str(cookies))
+            for cookie in cookies:
+                params = {'name': cookie['name'],
+                          'value': cookie['value'],
+                          'url': 'http://' + cookie['domain'] + '/',
+                          'path': '/'
+                         }
+
+                self.send_ws({"method": "Network.setCookie", "params": params}, cookies_resp)
+
+            #self.send_ws({"method": "Network.setCookies", "params": {"cookies": cookies}}, cookies_resp)
+            time.sleep(1.0)
+
         gevent.spawn(self.recv_ws_loop)
 
         # quene next url!
@@ -434,10 +449,12 @@ class AutoTab(object):
                         self.handle_InspectorDetached(resp)
 
                 except Exception as re:
-                    logger.warn('*** Error handling response')
-                    logger.warn(str(re))
+                    logger.warning('*** Error handling response')
+                    logger.warning(str(re))
 
-                #logger.debug(str(resp))
+                # LOG ALL ERROR MESSAGES
+                if 'error' in resp:
+                    logger.debug(str(resp))
 
         except Exception as e:
             logger.error(str(e))
