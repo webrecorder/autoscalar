@@ -297,8 +297,13 @@ class Main(object):
         browser = self.start_browser(cinfo, prefix='/combined/bn_/',
                                      url=cinfo['url'])
 
+        launch_url = request.urlparts.scheme + '://' + request.urlparts.netloc
+        launch_url += '/replay/{0}/combined/{1}'.format(cinfo['pywb_host'], cinfo['url'])
+
         return {'id': cinfo['id'],
-                'reqid': browser.reqid
+                'reqid': browser.reqid,
+                'url': cinfo['url'],
+                'launch_url': launch_url,
                }
 
     def start_import(self, cinfo, book, cmd, url):
@@ -570,6 +575,6 @@ function do_import() {
 # ============================================================================
 if __name__ == "__main__":
     main = Main()
-    WSGIServer('0.0.0.0:8375', main.app, handler_class=WebSocketHandler).serve_forever()
+    WSGIServer('0.0.0.0:8376', main.app, handler_class=WebSocketHandler).serve_forever()
 
 

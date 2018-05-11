@@ -89,6 +89,11 @@ $(function() {
 
       group_id = data.id;
 
+      if (data.launch_url) {
+        $("#launch_div").show();
+        $("#launch_url").attr("href", data.launch_url);
+      }
+
       if (data.reqid) {
         init_browser(data.reqid, "#browser");
       }
