@@ -36,7 +36,7 @@ class Main(object):
 
     REDIS_URL = 'redis://redis/2'
 
-    NUM_BROWSERS = 2
+    NUM_BROWSERS = 4
 
     def __init__(self):
         debug(True)
@@ -249,11 +249,12 @@ class Main(object):
 
         if browser_q_len > 0:
             self.send_ws(ws, {'msg': 'Starting Auto Browsers...'})
-            auto_res = self.start_browser_auto(cinfo, book, url, self.NUM_BROWSERS)
+            auto_reqids = self.start_browser_auto(cinfo, book, url, self.NUM_BROWSERS)
 
-            self.send_ws(ws, {'auto_reqids': auto_res['auto_reqids']})
+            self.send_ws(ws, {'auto_reqids': auto_reqids})
 
-            self.wait_for_queue(ws, auto_res['browser_q'], 'Capturing External Links: {done} of {total}', browser_q_len)
+            browser_q_len = self.redis.llen(cinfo['browser_q'])
+            self.wait_for_queue(ws, cinfo['browser_q'], 'Capturing External Links: {done} of {total}', browser_q_len)
         else:
             self.send_ws(ws, {'msg': 'No Browser Auto Needed'})
 
@@ -335,21 +336,22 @@ class Main(object):
         else:
             tab_opts = {}
 
-        print('TAB OPTS', tab_opts)
+        # add base url also
+        self.redis.rpush(cinfo['browser_q'], json.dumps({'url': url}))
 
         for i in range(count):
             autob = self.start_browser(cinfo, browser_q='browser_q:',
                                        prefix='/store/record/bn_/',
                                        tab_opts=tab_opts)
+
+            autob.queue_urls(['about:blank'])
             #if first:
-                #autob.queue_urls([url])
                 #autob.queue_urls(book.external_urls)
                 #first = False
 
             ids.append(autob.reqid)
 
-        return {'auto_reqids': ids,
-                'browser_q': 'browser_q:' + cinfo['id']}
+        return ids
 
     def init_scalar(self, scalar, book, init_cmd):
         try:

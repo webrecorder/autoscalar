@@ -308,7 +308,7 @@ class AutoTab(object):
                           'path': '/'
                          }
 
-                self.send_ws({"method": "Network.setCookie", "params": params}, cookies_resp)
+                self.send_ws({"method": "Network.setCookie", "params": params})
 
             #self.send_ws({"method": "Network.setCookies", "params": {"cookies": cookies}}, cookies_resp)
             time.sleep(1.0)

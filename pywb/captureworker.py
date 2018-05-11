@@ -46,18 +46,19 @@ class CaptureWorker(object):
                 # requeue with 'html_url' if current page may be html
                 if res.get('html_url'):
                     if self.maybe_html(r.headers.get('Content-Type', ''), res['url']):
-                        self.redis.rpush(self.browser_q, data)
-                        print('REQUEING',  res['html_url'])
+                        res['url'] = res['html_url']
+                        print('REQUEING',  res['url'])
+                        self.redis.rpush(self.browser_q, json.dumps(res))
 
         except:
             traceback.print_exc()
 
     def maybe_html(self, content_type, url):
         content_type = content_type.split(';', 1)[0].rstrip()
+        print('MIME', content_type)
+
         if content_type in ('text/html', 'application/x-html'):
             return True
-
-        print('MIME', content_type)
 
         if content_type:
             return False

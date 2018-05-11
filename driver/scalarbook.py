@@ -244,13 +244,16 @@ class ScalarBook(object):
         self.new_url = new_url
 
     def load_toc(self):
+        toc_list = []
+
         data = self.get_book_rdf_json(self.base_url)
+        if not data:
+            print('NO TOC')
+            return toc_list
 
         toc = data.get(self.base_url + '/toc')
 
         toc = toc.get(self.REF_FIELD, [])
-
-        toc_list = []
 
         for entry in toc:
             url = entry.get('value').split('#', 1)[0]

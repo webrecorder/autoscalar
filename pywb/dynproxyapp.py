@@ -48,10 +48,10 @@ class PrefixFilterIndexSource(LiveIndexSource):
         url = params['url']
 
         if self.filter_prefix:
-            print('TESTING: ' + url)
+            #print('TESTING: ' + url)
             if url.startswith(self.filter_prefix):
                 url = self.redirect_prefix + url[len(self.filter_prefix):]
-                print('NEW URL: ' + url)
+                #print('NEW URL: ' + url)
             else:
                 print('Skipping')
                 raise NotFoundException('Skipping: ' + url)
