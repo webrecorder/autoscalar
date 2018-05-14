@@ -215,7 +215,7 @@ class Main(object):
 
             time.sleep(1.0)
 
-    def new_scalar_archive(self, url, ws, email='', password=''):
+    def new_scalar_archive(self, ws, url, image_name='', email='', password=''):
         self.send_ws(ws, {'msg': 'Check Scalar Url...'})
         book = ScalarBook(url, email=email, password=password)
         cmd = book.load_book_init_cmd()
@@ -263,7 +263,11 @@ class Main(object):
 
             time.sleep(5)
 
-        image_name = url.rsplit('/', 1)[-1]
+        if not image_name:
+            image_name = url.rsplit('/', 1)[-1]
+        else:
+            image_name = image_name.replace(':', '')
+
         self.send_ws(ws, {'msg': 'Committing to Image {0}...'.format(image_name)})
 
         self.commit_image(cinfo['id'], image_name)
@@ -410,9 +414,10 @@ class Main(object):
             url = request.query.get('url')
             email = request.query.get('email', '')
             password = request.query.get('password', '')
+            image_name = request.query.get('image-name', '')
 
             ws = request.environ['wsgi.websocket']
-            self.new_scalar_archive(url, ws, email, password)
+            self.new_scalar_archive(ws, url, image_name, email, password)
             ws.close()
 
         @self.app.get('/archive/commit/<id>')

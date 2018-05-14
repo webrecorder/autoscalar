@@ -2,16 +2,24 @@ var group_id = "";
 
 
 $(function() {
+  $("#new-url").change(function() {
+    var parts = $("#new-url").val().split("/");
+    $("#image-name").val(parts[parts.length - 1]);
+  });
+
   $("#new-archive").submit(function(event) {
     event.preventDefault();
 
     //$.ajax({"url": "/archive/new/" + $("#new-url").val(),
     //        "dataType": "json"}).done(function(data, status, xhr) {
 
-    var ws_url = "ws://" + window.location.host + "/archive/new";
+    var proto = (window.location.protocol == "https:" ? "wss://" : "ws://");
+
+    var ws_url = proto + window.location.host + "/archive/new";
     ws_url += "?" + $.param({"url": $("#new-url").val(),
                              "email": $("#email").val(),
-                             "password": $("#password").val()
+                             "password": $("#password").val(),
+                             "image-name": $("#image-name").val()
                             })
     console.log(ws_url);
 

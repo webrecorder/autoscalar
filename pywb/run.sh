@@ -16,6 +16,9 @@ else
     echo "Wait for volume to contain data"
     sleep 2
   done
+
+  mkdir -p /data/warcs/static/
+  cp -r /app/static/default_banner.* /data/warcs/static/
 fi
 
 #python -u /app/captureworker.py &
