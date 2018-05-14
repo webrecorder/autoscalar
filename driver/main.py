@@ -14,6 +14,7 @@ import requests
 from urllib.parse import urlsplit, urlunsplit
 
 from bottle import debug, default_app, request, jinja2_view, TEMPLATE_PATH, static_file
+from bottle import response
 from scalarbook import ScalarBook
 from autobrowser import AutoBrowser, AutoTab
 
@@ -394,6 +395,7 @@ class Main(object):
         if prefix:
             cdata['pywb_prefix'] = prefix
             cdata['proxy_host'] = cinfo['pywb_host']
+            cdata['audio_type'] = 'opus'
 
         if url:
             cdata['url'] = url
@@ -449,6 +451,20 @@ class Main(object):
         @self.app.get('/static/<filename>')
         def server_static(filename):
             return static_file(filename, root='./static/')
+
+
+        @self.app.get('/archive/download/<image_name>')
+        def download(image_name):
+            image_name = self.USER_IMAGE.format(image_name)
+            try:
+                image = self.client.images.get(image_name)
+                gen = image.save()
+
+            except Exception as e:
+                return {'error': str(e)}
+
+            response.headers['Content-Disposition'] = 'attachment; filename="{0}.tar.gz"'.format(image_name)
+            return gen
 
 
 # ============================================================================
