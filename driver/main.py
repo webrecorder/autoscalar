@@ -22,6 +22,8 @@ from autobrowser import AutoBrowser, AutoTab
 class Main(object):
     GSESH = 'ssesh:{0}'
 
+    BLIST = 'ssesh:{0}:br'
+
     USER_IMAGE = 'dynpreserve/user-scalar:{0}'
     USER_IMAGE_PREFIX = 'dynpreserve/user-scalar'
 
@@ -132,6 +134,7 @@ class Main(object):
                 'pywb': pywb,
                 'media_q': media_q,
                 'browser_q': browser_q,
+                'browser_list_key': self.BLIST.format(id)
                }
 
     def wait_for_load(self, hostname, port):
@@ -175,6 +178,17 @@ class Main(object):
             print('Removing volume')
             volume = self.client.volumes.get(self.VOL_PREFIX + id)
             volume.remove(force=True)
+        except Exception as e:
+            print(e)
+
+        try:
+            print('Removing browsers')
+            browser_ids = self.redis.smembers(self.BLIST.format(id))
+
+            for browser in browser_ids:
+                res = requests.get('http://shepherd:9020/remove_browser?reqid=' + browser)
+                print(res.text)
+
         except Exception as e:
             print(e)
 
@@ -329,6 +343,8 @@ class Main(object):
         else:
             browser.queue_urls([cinfo['local_url']])
 
+        self.redis.sadd(cinfo['browser_list_key'], browser.reqid)
+
         return browser.reqid
 
     def start_browser_auto(self, cinfo, book, url, count):
@@ -354,6 +370,8 @@ class Main(object):
                 #first = False
 
             ids.append(autob.reqid)
+
+            self.redis.sadd(cinfo['browser_list_key'], autob.reqid)
 
         return ids
 
