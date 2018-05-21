@@ -113,5 +113,5 @@ $(function() {
 
 
 function init_browser(reqid, dom_id) {
-  $(dom_id)[0].src = window.location.protocol + "//" + window.location.hostname + ":9020/attach/" + reqid;
+  $(dom_id)[0].src = window.location.protocol + "//" + window.location.host + "/attach/" + reqid;
 }

@@ -6,9 +6,6 @@ services:
         depends_on:
             - shepherd
 
-        #ports:
-        #    - 8375:8375
-
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
 
@@ -25,9 +22,9 @@ services:
             - REDIS_BROWSER_URL=redis://redis/0
             - CLUSTER_NAME=scalar_shepherd
             - NETWORK_NAME=scalar_default
-            - IDLE_TIMEOUT=300
+            - IDLE_TIMEOUT=600
             #- AUDIO_TYPE=opus
-            - CONTAINER_EXPIRE_SECS=1200
+            - CONTAINER_EXPIRE_SECS=4200
 
             #- PROXY_HOST=pywb
             - PROXY_PORT=8080
@@ -42,8 +39,6 @@ services:
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
 
-        ports:
-            - 9020:9020
 
     nginx:
         image: nginx
