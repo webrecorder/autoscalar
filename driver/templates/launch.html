@@ -9,12 +9,13 @@
         <div class="col-md-8">
           <form id="launch" class="form-inline">
             <label class="mr-3" for="run-image-name">Select Image: </label>
-            <select id="run-image-name" class="custom-select form-control mr-3">
+            <select id="run-image-name" class="custom-select form-control mr-3" style="max-width:400px">
               {% for image in images %}
               <option value="{{ image }}">{{ image }}</option>
               {% endfor %}
             </select>
-            <button type="submit" class="btn btn-primary">Launch</button>
+            <button type="submit" class="btn btn-primary mr-3">Launch</button>
+            <button type="button" id="cancel" class="btn btn-danger">Close</button>
           </form>
           <div id="launch_div" style="display: none">
             <a id="launch_url" target="_blank" href="#">Launch Native</a>
@@ -31,6 +32,15 @@
           </form>
         </div>
       </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="mt-3" style="color: darkgreen; font-weight: bold">
+            <span id="status" style="min-height: 20px">Select an image to launch</span>
+          </div>
+        </div>
+      </div>
+
     </div>
     <div class="card text-center">
       <div class="card-body">

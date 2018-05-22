@@ -7,15 +7,13 @@ $(function() {
     $("#image-name").val(parts[parts.length - 1]);
   });
 
+
   $("#new-archive").submit(function(event) {
     event.preventDefault();
 
-    //$.ajax({"url": "/archive/new/" + $("#new-url").val(),
-    //        "dataType": "json"}).done(function(data, status, xhr) {
-
     var proto = (window.location.protocol == "https:" ? "wss://" : "ws://");
 
-    var ws_url = proto + window.location.host + "/archive/new";
+    var ws_url = proto + window.location.host + "/archive/ws/new";
     ws_url += "?" + $.param({"url": $("#new-url").val(),
                              "email": $("#email").val(),
                              "password": $("#password").val(),
@@ -90,12 +88,30 @@ $(function() {
   $("#launch").submit(function(event) {
     event.preventDefault();
 
-    $.ajax({"url": "/archive/launch/" + $("#run-image-name").val(),
-            "dataType": "json"}).done(function(data) {
+    var proto = (window.location.protocol == "https:" ? "wss://" : "ws://");
+
+    var ws_url = proto + window.location.host + "/archive/ws/launch/" + $("#run-image-name").val();
+
+    console.log(ws_url);
+
+    var ws = new WebSocket(ws_url);
+
+    ws.onmessage = function(event) {
+      var data = JSON.parse(event.data);
 
       console.log(data);
 
-      group_id = data.id;
+      if (data.msg) {
+        $("#status").text(data.msg);
+      }
+
+      if (data.error) {
+        return;
+      }
+
+      if (data.launch_id) {
+        group_id = data.launch_id;
+      }
 
       if (data.launch_url) {
         $("#launch_div").show();
@@ -105,8 +121,9 @@ $(function() {
       if (data.reqid) {
         init_browser(data.reqid, "#browser");
       }
-    });
-    return true;
+
+    };
+
   });
 
 });

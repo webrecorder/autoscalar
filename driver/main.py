@@ -309,22 +309,33 @@ class Main(object):
     def send_ws(self, ws, data):
         ws.send(json.dumps(data))
 
-    def load_existing_archive(self, image_name):
+    def load_existing_archive(self, ws, image_name):
+        self.send_ws(ws, {'msg': 'Launching Image: {0}'.format(image_name)})
+
         cinfo = self.launch_group(image_name=image_name)
         if 'error' in cinfo:
-            return cinfo
+            cinfo['msg'] = 'Error Launching'
+            self.send_ws(ws, cinfo)
+            return
 
+        self.send_ws(ws, {'msg': 'Starting Browser'})
         browser = self.start_browser(cinfo, prefix='/combined/bn_/',
                                      url=cinfo['url'])
 
         launch_url = request.urlparts.scheme + '://' + request.urlparts.netloc
         launch_url += '/replay/{0}/combined/{1}'.format(cinfo['pywb_host'], cinfo['url'])
 
-        return {'id': cinfo['id'],
+        data = {'launch_id': cinfo['id'],
                 'reqid': browser.reqid,
                 'url': cinfo['url'],
                 'launch_url': launch_url,
+
+                'msg': 'Scalar Site Ready'
                }
+
+        self.send_ws(ws, data)
+        while True:
+            time.sleep(5)
 
     def start_import(self, cinfo, book, cmd, url):
         self.init_scalar(cinfo['scalar'], book, cmd)
@@ -343,8 +354,6 @@ class Main(object):
             browser.queue_urls([url])
         else:
             browser.queue_urls([cinfo['local_url']])
-
-        self.redis.sadd(cinfo['browser_list_key'], browser.reqid)
 
         return browser.reqid
 
@@ -371,8 +380,6 @@ class Main(object):
                 #first = False
 
             ids.append(autob.reqid)
-
-            self.redis.sadd(cinfo['browser_list_key'], autob.reqid)
 
         return ids
 
@@ -407,6 +414,8 @@ class Main(object):
                               tab_class=tab_class,
                               tab_opts=tab_opts)
 
+        self.redis.sadd(cinfo['browser_list_key'], browser.reqid)
+
         return browser
 
     def init_routes(self):
@@ -429,7 +438,7 @@ class Main(object):
         def delete_group(id):
             self.delete_group(id)
 
-        @self.app.get('/archive/new')
+        @self.app.get('/archive/ws/new')
         def start_new_scalar():
             url = request.query.get('url')
             email = request.query.get('email', '')
@@ -444,9 +453,11 @@ class Main(object):
         def commit_image(id):
             return self.commit_image(id, request.query.get('name'))
 
-        @self.app.get('/archive/launch/<image_name>')
+        @self.app.get('/archive/ws/launch/<image_name>')
         def launch_existing(image_name):
-            return self.load_existing_archive(image_name)
+            ws = request.environ['wsgi.websocket']
+            self.load_existing_archive(ws, image_name)
+            ws.close()
 
         @self.app.get('/static/<filename>')
         def server_static(filename):
