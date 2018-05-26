@@ -1,7 +1,48 @@
-var group_id = "";
-
+var new_group_id = "";
+var replay_group_id = "";
+var all_images = {};
 
 $(function() {
+  $("#launch-link").on("show.bs.tab", function() {
+    loadImages();
+  });
+
+  $("#new-link").on("show.bs.tab", function() {
+
+  });
+
+  function loadImages() {
+    $.getJSON("/archive/list/images", function(data) {
+      $("#run-image-select").empty();
+      all_images = {}
+      $.each(data.images, function(i, value) {
+        all_images[value.name] = value;
+        $('#run-image-select').append('<option value=' + value.name + '>' + value.name + '</option>');
+      });
+    });
+  }
+
+  $.each(image_list, function(i, value) {
+    all_images[value.name] = value;
+  });
+
+  function init_launch_image_ui() {
+    var name = $("#run-image-select").val();
+
+    $("#image_download").attr("href", "/archive/download/" + name);
+    $("#image_download").text(name + ".tar.gz");
+
+    $("#image_start_url").text(all_images[name].url);
+    $("#image_size").text("~" + all_images[name].size);
+  }
+
+  init_launch_image_ui();
+
+  $("#run-image-select").change(function() {
+    init_launch_image_ui();
+  });
+
+
   $("#new-url").change(function() {
     var parts = $("#new-url").val().split("/");
     $("#image-name").val(parts[parts.length - 1]);
@@ -17,7 +58,8 @@ $(function() {
     ws_url += "?" + $.param({"url": $("#new-url").val(),
                              "email": $("#email").val(),
                              "password": $("#password").val(),
-                             "image-name": $("#image-name").val()
+                             "image-name": $("#image-name").val(),
+                             "auth-code": $("#auth-code").val()
                             })
     console.log(ws_url);
 
@@ -29,18 +71,21 @@ $(function() {
       console.log(data);
 
       if (data.msg) {
-        $("#status").text(data.msg);
+        $("#status-new").text(data.msg);
       }
 
       if (data.error) {
+        $("#status-new").addClass("error-msg");
         return;
+      } else {
+        $("#status-new").removeClass("error-msg");
       }
 
       if (data.launch_id) {
-        group_id = data.launch_id;
+        new_group_id  = data.launch_id;
 
-        $("#commit button").attr("disabled", false);
-        $("#cancel").attr("disabled", false);
+        //$("#commit button").attr("disabled", false);
+        $("#cancel-new").attr("disabled", false);
       }
 
       if (data.import_reqid) {
@@ -62,7 +107,7 @@ $(function() {
   $("#commit").submit(function(event) {
     event.preventDefault();
 
-    $.ajax({"url": "/archive/commit/" + group_id,
+    $.ajax({"url": "/archive/commit/" + replay_group_id,
             "data": {"name": $("#run-image-name").val()},
             "dataType": "json"}).done(function(data) {
 
@@ -72,13 +117,21 @@ $(function() {
     return true;
   });
 
-  $("#cancel").click(function(event) {
+
+  $("#cancel-new").click(function(event) {
     event.preventDefault();
 
-    $.ajax({"url": "/archive/delete/" + group_id,
+    $.ajax({"url": "/archive/delete/" + new_group_id,
             "dataType": "json"}).done(function(data) {
 
       console.log(data);
+
+      $("#status-launch").text("Import Canceled. Enter a Url to start again");
+      $("#import-browser")[0].src = "about:blank";
+
+      for (var i = 0; i < 4; i++) {
+        $("#auto-" + i)[0].src = "about:blank";
+      }
     });
 
     return true;
@@ -90,7 +143,7 @@ $(function() {
 
     var proto = (window.location.protocol == "https:" ? "wss://" : "ws://");
 
-    var ws_url = proto + window.location.host + "/archive/ws/launch/" + $("#run-image-name").val();
+    var ws_url = proto + window.location.host + "/archive/ws/launch/" + $("#run-image-select").val();
 
     console.log(ws_url);
 
@@ -102,15 +155,20 @@ $(function() {
       console.log(data);
 
       if (data.msg) {
-        $("#status").text(data.msg);
+        $("#status-launch").text(data.msg);
       }
 
       if (data.error) {
+        $("#status-launch").addClass("error-msg");
         return;
+      } else {
+        $("#status-launch").removeClass("error-msg");
       }
 
       if (data.launch_id) {
-        group_id = data.launch_id;
+        replay_group_id = data.launch_id;
+
+        $("#cancel-launch").attr("disabled", false);
       }
 
       if (data.launch_url) {
@@ -124,6 +182,21 @@ $(function() {
 
     };
 
+  });
+
+  $("#cancel-launch").click(function(event) {
+    event.preventDefault();
+
+    $.ajax({"url": "/archive/delete/" + replay_group_id,
+            "dataType": "json"}).done(function(data) {
+
+      console.log(data);
+
+      $("#status-launch").text("Image Closed. Start a New Image");
+      $("#browser")[0].src = "about:blank";
+    });
+
+    return true;
   });
 
 });

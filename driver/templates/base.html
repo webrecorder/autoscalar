@@ -5,6 +5,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
+  <style>
+  .wr_logo {
+    display: inline;
+    width: 64px;
+    height: 64px;
+  }
+  .sc_logo {
+    width: 32px;
+    height: 32px;
+  }
+  .error-msg {
+    color: #bd2130;
+  }
+  </style>
+
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
 
@@ -16,6 +31,9 @@
   <script src="/static/main.js"></script>
 
   <title>Scalar Preserve</title>
+  <script>
+    var image_list = {{ images | tojson }};
+  </script>
 </head>
 <body>
   {% block body %}

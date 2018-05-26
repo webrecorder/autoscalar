@@ -41,6 +41,8 @@ class Main(object):
 
     NUM_BROWSERS = 4
 
+    AUTH_CODE = os.environ.get('AUTH_CODE', '')
+
     def __init__(self):
         debug(True)
         TEMPLATE_PATH.insert(0, './templates')
@@ -154,9 +156,12 @@ class Main(object):
         except Exception as e:
             return {'error': str(e)}
 
-        image_names = [image.tags[0].rsplit(':', 1)[1] for image in images]
+        images = [{'name': image.tags[0].rsplit(':', 1)[1],
+                   'url': image.labels[self.START_URL_LABEL],
+                   'size': image.attrs['Size'],
+                  } for image in images]
 
-        return {'images': image_names}
+        return {'images': sorted(images, key=lambda x: x.get('name'))}
 
     def delete_group(self, id):
         id_key = self.GSESH.format(id)
@@ -230,7 +235,13 @@ class Main(object):
 
             time.sleep(1.0)
 
-    def new_scalar_archive(self, ws, url, image_name='', email='', password=''):
+    def new_scalar_archive(self, ws, url, image_name='', email='', password='', authcode=''):
+        print(authcode)
+        if authcode != self.AUTH_CODE:
+            print('invalid authcode')
+            self.send_ws(ws, {'msg': 'Sorry, the passcode is not valid. This Demo is not yet publicly available. Please contact us at support@webrecorder.io to request a passcode', 'error': 'auth'})
+            return
+
         self.send_ws(ws, {'msg': 'Check Scalar Url...'})
         book = ScalarBook(url, email=email, password=password)
         cmd = book.load_book_init_cmd()
@@ -330,7 +341,7 @@ class Main(object):
                 'url': cinfo['url'],
                 'launch_url': launch_url,
 
-                'msg': 'Scalar Site Ready'
+                'msg': 'Scalar Image Ready: '
                }
 
         self.send_ws(ws, data)
@@ -422,7 +433,8 @@ class Main(object):
         @self.app.get('/')
         @jinja2_view('index.html')
         def index():
-            return {}
+            res = self.list_images()
+            return {'images': res.get('images', [])}
 
         @self.app.get('/launch')
         @jinja2_view('launch.html')
@@ -445,8 +457,11 @@ class Main(object):
             password = request.query.get('password', '')
             image_name = request.query.get('image-name', '')
 
+            auth_code = request.query.get('auth-code', '')
+
             ws = request.environ['wsgi.websocket']
-            self.new_scalar_archive(ws, url, image_name, email, password)
+            self.new_scalar_archive(ws, url, image_name, email, password, auth_code)
+            time.sleep(1.0)
             ws.close()
 
         @self.app.get('/archive/commit/<id>')
@@ -466,6 +481,7 @@ class Main(object):
 
         @self.app.get('/archive/download/<image_name>')
         def download(image_name):
+            name = image_name
             image_name = self.USER_IMAGE.format(image_name)
             try:
                 image = self.client.images.get(image_name)
@@ -474,7 +490,7 @@ class Main(object):
             except Exception as e:
                 return {'error': str(e)}
 
-            response.headers['Content-Disposition'] = 'attachment; filename="{0}.tar.gz"'.format(image_name)
+            response.headers['Content-Disposition'] = 'attachment; filename="{0}.tar.gz"'.format(name)
             return gen
 
 
