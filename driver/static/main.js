@@ -33,7 +33,7 @@ $(function() {
     $("#image_download").text(name + ".tar.gz");
 
     $("#image_start_url").text(all_images[name].url);
-    $("#image_size").text("~" + all_images[name].size);
+    $("#image_size").text(bytesToSize(all_images[name].size));
   }
 
   init_launch_image_ui();
@@ -126,7 +126,7 @@ $(function() {
 
       console.log(data);
 
-      $("#status-launch").text("Import Canceled. Enter a Url to start again");
+      $("#status-new").text("Preservation Canceled");
       $("#import-browser")[0].src = "about:blank";
 
       for (var i = 0; i < 4; i++) {
@@ -192,8 +192,9 @@ $(function() {
 
       console.log(data);
 
-      $("#status-launch").text("Image Closed. Start a New Image");
+      $("#status-launch").text("Image Stopped");
       $("#browser")[0].src = "about:blank";
+      $("#launch_div").hide();
     });
 
     return true;
@@ -205,3 +206,11 @@ $(function() {
 function init_browser(reqid, dom_id) {
   $(dom_id)[0].src = window.location.protocol + "//" + window.location.host + "/attach/" + reqid;
 }
+
+function bytesToSize(bytes) {
+    var sizes = ['bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes == 0) return 'n/a';
+    var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    if (i == 0) return bytes + ' ' + sizes[i];
+    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+};

@@ -6,105 +6,115 @@
     <div class="card-header">
       <div class="text-center">
         <h3>
-        <a href="https://webrecorder.io/"><img src="/static/webrecorder_logo.png" class="wr_logo mr-2"/></a>Webrecorder Auto Preserver Prototype</h3>
-        <h4>for Scalar<a href="https://scalar.me/anvc/scalar/"><img src="/static/scalar_logo.png" class="ml-2 sc_logo"/></a></h4>
-      </div>
-      <ul class="nav nav-tabs card-header-tabs" role="tablist">
-        <li class="nav-item">
-          <a class="nav-link active" role="tab" id="launch-link" data-toggle="tab" href="#launch">Launch Preserve Image</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" role="tab" id="new-link" data-toggle="tab" href="#new">Preserve New Image</a>
-        </li>
-      </ul>
-    </div>
+          <a href="https://webrecorder.io/"><img src="/static/webrecorder_logo.png" class="wr_logo mr-2"/></a>Webrecorder Auto Preserver Prototype</h3>
+          <h4>for Scalar<a href="https://scalar.me/anvc/scalar/"><img src="/static/scalar_logo.png" class="ml-2 sc_logo"/></a></h4>
 
-    <!-- LAUNCH -->
-    <div class="card-body tab-content">
-      <div class="tab-pane fade show active" role="tabpanel" id="launch">
-        <div class="row">
-          <div class="col-md-1">
-            <label class="mt-2 text-left" style="display: inline-block; min-width: 300px" for="run-image-select">Run Image:</label>
-          </div>
-          <div class="col-md-8">
-            <form id="launch" class="form-inline">
-              <select id="run-image-select" class="custom-select form-control mr-3" >
-                {% for image in images %}
-                <option value="{{ image.name }}">{{ image.name }}</option>
-                {% endfor %}
-              </select>
-              <button type="submit" class="btn btn-primary mr-3">Launch</button>
-              <button type="button" id="cancel-launch" disabled="disabled" class="btn btn-danger cancel-btn mr-3">Close</button>
-            </form>
-          </div>
+          <small><a href="https://docs.google.com/presentation/d/1_AoCavSoZRFZp6KNpRcYfhJe9am4XCJIWN26mP4Haro/edit#slide=id.g39f46cab1b_0_625">How does it work?</a></small>
         </div>
-        <div class="row mt-2">
-          <div class="col-md-1"></div>
-          <div class="col-md-10 text-left">Start Url:&nbsp;<b><span class="col-md-6" id="image_start_url"></span></b>
-          </div>
-        </div>
-        <div class="row mt-2">
-          <div class="col-md-1"></div>
-          <div class="col-md-10 text-left">Download:&nbsp;&nbsp;<a id="image_download" href="#">Download Image</a>
-          (<span id="image_size"></span> bytes)
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-md-12">
-            <div class="mt-3" style="color: darkgreen; font-weight: bold">
-              <span id="status-launch" style="min-height: 20px">Select an image and click Launch</span>
-              <span id="launch_div" style="display: none">
-                <a id="launch_url" target="_blank" href="#">Browse in New Tab</a>
-              </span>
-            </div>
-          </div>
-        </div>
-        <div class="card text-center">
-          <div class="card-body">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" role="tab" id="launch-link" data-toggle="tab" href="#launch">Launch Preserve Image</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" role="tab" id="new-link" data-toggle="tab" href="#new">Preserve New Image</a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- LAUNCH -->
+      <div class="card-body tab-content">
+        <div class="tab-pane fade show active" role="tabpanel" id="launch">
+          <form id="launch ">
             <div class="row">
+              <div class="col-md-1">
+                <label class="mt-2 text-left" style="display: inline-block; min-width: 300px" for="run-image-select">Run Image:</label>
+              </div>
+              <div class="col-md-6">
+                <select id="run-image-select" class="custom-select form-control mr-3" >
+                  {% for image in images %}
+                  <option value="{{ image.name }}">{{ image.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-1"></div>
+              <div class="col-md-10 text-left">Start Url:&nbsp;<b><span class="col-md-6" id="image_start_url"></span></b>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-1"></div>
+              <div class="col-md-10 text-left">Download:&nbsp;&nbsp;<a id="image_download" href="#">Download Image</a>
+                (<span id="image_size"></span>)
+              </div>
+            </div>
+            <div class="row text-center mt-4">
               <div class="col-md-12">
-                <iframe style="width: 100%; height: 600px;" id="browser"></iframe>
+                <button type="submit" class="btn btn-primary mr-3">Launch Preserved</button>
+                <button type="button" id="cancel-launch" disabled="disabled" class="btn btn-danger cancel-btn mr-3">Stop</button>
+              </div>
+            </div>
+          </form>
+          <div class="row">
+            <div class="col-md-12">
+              <div class="mt-3" style="color: darkgreen; font-weight: bold">
+                <span id="status-launch" style="min-height: 20px">Select an image, click Launch to begin</span>
+                <span id="launch_div" style="display: none">
+                  <a id="launch_url" target="_blank" href="#">Browse in New Tab</a>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="card text-center">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-12">
+                  <iframe style="width: 100%; height: 600px;" id="browser"></iframe>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- NEW -->
-      <div class="tab-pane fade" role="tabpanel" id="new">
-        <div class="row">
-          <div class="col-md-12">
-            <form id="new-archive">
-              <div class="form-group row alert alert-info">
-               <span>This is an early prototype and not yet public. Please <a href="mailto:support@webrecorder.io"> contact us </a> for a pass code to try the preservation demo:</span>
-                <input class="ml-2" type="password" name="auth-code" id="auth-code" placeholder="Passcode">
-              </div>
+        <!-- NEW -->
+        <div class="tab-pane fade" role="tabpanel" id="new">
+          <div class="row">
+            <div class="col-md-12">
+              <form id="new-archive">
+                <div class="form-group row alert alert-info">
+                 <span>This is an experimental prototype and not yet public. Please <a href="mailto:support@webrecorder.io"> contact us </a> for a pass code to try the preservation demo:</span>
+                 <input class="ml-2" type="password" name="auth-code" id="auth-code" placeholder="Passcode">
+               </div>
 
-              <div class="form-group row">
-                <label class="col-md-2 col-form-label" for="url">Live Scalar Url</label>
+               <div class="form-group row">
+                <label class="col-md-2 col-form-label text-right" for="url">Live Scalar Url</label>
                 <div class="col-md-8">
                   <input type="text" style="min-width: 400px" id="new-url" name="url" class="form-control" placeholder="http://... Enter a new Scalar url to preserve">
                 </div>
               </div>
 
               <div class="form-group row">
-                <label for="email" class="col-md-2 col-form-label">Scalar Login Email</label>
+                <label for="image" class="col-md-2 col-form-label text-right">Image</label>
                 <div class="col-md-3">
-                  <input type="text" class="form-control" name="email" id="email" placeholder="email (if needed)">
-                </div>
-                <label for="image" class="col-md-1 col-form-label">Image</label>
-                <div class="col-md-4">
                   <input type="text" id="image-name" name="image-name" class="form-control" placeholder="Enter name for image">
+                </div>
+                <label for="email" class="col-md-2 col-form-label text-right">Scalar Login Email</label>
+                <div class="col-md-3">
+                  <input type="text" class="form-control" name="email" id="email" placeholder="Email (if needed)">
                 </div>
               </div>
 
               <div class="form-group row">
-                <label for="Password" class="col-md-2 col-form-label">Scalar Password</label>
+                <div class="col-md-5"></div>
+                <label for="Password" class="col-md-2 col-form-label text-right">Scalar Password</label>
                 <div class="col-md-3">
-                  <input type="password" class="form-control" name="password" id="password" placeholder="password (if needed)">
+                  <input type="password" class="form-control" name="password" id="password" placeholder="Password (if needed)">
                 </div>
-                <div class="col-md-5">
-                  <button type="submit" class="mr-3 btn btn-primary">New Archive</button>
+              </div>
+
+              <div class="row text-center mt-4">
+                <div class="col-md-12">
+                  <button type="submit" class="mr-3 btn btn-primary">Preserve!</button>
                   <button type="button" id="cancel-new" disabled="disabled" class="btn btn-danger cancel-btn">Cancel</button>
                 </div>
               </div>
@@ -116,7 +126,7 @@
         <div class="row">
           <div class="col-md-12">
             <div class="mt-3" style="color: darkgreen; font-weight: bold">
-              <span id="status-new" style="min-height: 20px">Enter url above to start</span>
+              <span id="status-new" style="min-height: 20px">Enter Live Scalar Url above and click Preserve to start</span>
             </div>
           </div>
         </div>

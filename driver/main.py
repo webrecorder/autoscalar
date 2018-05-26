@@ -452,6 +452,7 @@ class Main(object):
         @self.app.get('/archive/delete/<id>')
         def delete_group(id):
             self.delete_group(id)
+            return {}
 
         @self.app.get('/archive/ws/new')
         def start_new_scalar():
