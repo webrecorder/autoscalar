@@ -126,8 +126,6 @@ class Main(object):
 
         self.redis.hset(id_key, 'pywb_id', pywb_host)
 
-        self.wait_for_load(pywb_host, 8080)
-
         return {'id': id,
                 'pywb_host': pywb_host,
                 'scalar_host': scalar_host,
@@ -140,7 +138,7 @@ class Main(object):
                 'browser_list_key': self.BLIST.format(id)
                }
 
-    def wait_for_load(self, hostname, port):
+    def wait_for_load(self, ws, hostname, port):
         while True:
             try:
                 res = requests.get('http://{0}:{1}/'.format(hostname, port))
@@ -148,7 +146,8 @@ class Main(object):
             except Exception as e:
                 print(e)
                 print('Waiting for pywb init')
-                time.sleep(1)
+                time.sleep(5)
+                self.send_ws(ws, {'msg': 'Waiting for server init'})
 
     def list_images(self):
         try:
@@ -256,6 +255,8 @@ class Main(object):
             cinfo['msg'] = 'Error Launching'
             self.send_ws(ws, cinfo)
             return
+        else:
+            self.wait_for_load(ws, cinfo['pywb_host'], 8080)
 
         self.send_ws(ws, {'msg': 'Loading And Queing Media...'})
         self.queue_media(book, cinfo)
@@ -328,6 +329,8 @@ class Main(object):
             cinfo['msg'] = 'Error Launching'
             self.send_ws(ws, cinfo)
             return
+        else:
+            self.wait_for_load(ws, cinfo['pywb_host'], 8080)
 
         self.send_ws(ws, {'msg': 'Starting Browser'})
         browser = self.start_browser(cinfo, prefix='/combined/bn_/',
