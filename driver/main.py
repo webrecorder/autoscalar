@@ -39,7 +39,7 @@ class Main(object):
 
     REDIS_URL = 'redis://redis/2'
 
-    NUM_BROWSERS = 4
+    NUM_BROWSERS = 1
 
     AUTH_CODE = os.environ.get('AUTH_CODE', '')
 
@@ -582,7 +582,7 @@ function do_import() {
         super(ImportTabDriver, self).__init__(*args, **kwargs)
 
     def navigate_to(self, url, stage):
-        self.send_ws({"method": "Page.navigate", "params": {"url": url}})
+        self.rdp.Page.navigate(url=url)
         self.stage = stage
 
     def handle_done_loading(self):
@@ -601,9 +601,7 @@ function do_import() {
 
                 self.book.cookies = cookies
 
-            self.send_ws({"method": "Network.getCookies",
-                          "params": {"urls": [self.curr_url]}},
-                          save_cookies)
+            self.rdp.Network.getCookies(urls=[self.curr_url], callback=save_cookies)
 
         elif self.stage == self.INIT:
             print('INIT', self.curr_url)

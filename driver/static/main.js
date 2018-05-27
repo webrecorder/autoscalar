@@ -98,6 +98,10 @@ $(function() {
           init_browser(data.auto_reqids[i], "#auto-" + i);
         }
       }
+
+      if (data.done) {
+        $("#cancel-new").attr("disabled", true);
+      }
     };
 
     return true;
@@ -139,6 +143,14 @@ $(function() {
 
 
   $("#launch").submit(function(event) {
+    $("#launch_div").hide();
+
+    if (replay_group_id) {
+      cancel_replay();
+    }
+
+    $("#launch").attr("disabled", true);
+
     event.preventDefault();
 
     var proto = (window.location.protocol == "https:" ? "wss://" : "ws://");
@@ -184,8 +196,12 @@ $(function() {
 
   });
 
-  $("#cancel-launch").click(function(event) {
-    event.preventDefault();
+  $("#cancel-launch").click(cancel_replay);
+
+  function cancel_replay(event) {
+    if (event) {
+      event.preventDefault();
+    }
 
     $.ajax({"url": "/archive/delete/" + replay_group_id,
             "dataType": "json"}).done(function(data) {
@@ -195,10 +211,15 @@ $(function() {
       $("#status-launch").text("Image Stopped");
       $("#browser")[0].src = "about:blank";
       $("#launch_div").hide();
+
+      $("#cancel-launch").attr("disabled", true);
     });
 
+    replay_group_id = undefined;
+    $("#launch").attr("disabled", false);
+
     return true;
-  });
+  };
 
 });
 

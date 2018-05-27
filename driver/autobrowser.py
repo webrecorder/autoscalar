@@ -14,6 +14,7 @@ import re
 from urllib.parse import quote
 
 logger = logging.getLogger('autobrowser')
+DEBUG_ALL = False
 
 
 # ============================================================================
@@ -272,6 +273,21 @@ class AutoBrowser(object):
 
 
 # ============================================================================
+class CallRDP(object):
+    def __init__(self, func, method=''):
+        self.func = func
+        self.method = method
+
+    def __getattr__(self, name):
+        return CallRDP(self.func, self.method + '.' + name if self.method else name)
+
+    def __call__(self, **kwargs):
+        callback = kwargs.pop('callback', None)
+        self.func({"method": self.method,
+                   "params": kwargs}, callback=callback)
+
+
+# ============================================================================
 class AutoTab(object):
     def __init__(self, browser, tab_data, *args, **kwargs):
         self.tab_id = tab_data['id']
@@ -283,6 +299,8 @@ class AutoTab(object):
         self.tab_data = tab_data
         self._behavior_done = False
         self._replaced_with_devtools = False
+
+        self.rdp = CallRDP(self.send_ws)
 
         self.id_count = 0
         self.frame_id = ''
@@ -308,7 +326,8 @@ class AutoTab(object):
                           'path': '/'
                          }
 
-                self.send_ws({"method": "Network.setCookie", "params": params})
+                #self.send_ws({"method": "Network.setCookie", "params": params})
+                self.rdp.Network.setCookie(**params)
 
             #self.send_ws({"method": "Network.setCookies", "params": {"cookies": cookies}}, cookies_resp)
             time.sleep(1.0)
@@ -316,14 +335,18 @@ class AutoTab(object):
         gevent.spawn(self.recv_ws_loop)
 
         # quene next url!
+        self._next_ge = None
         self.queue_next(now=True)
 
     def _init_ws(self):
         self.ws = websocket.create_connection(self.tab_data['webSocketDebuggerUrl'])
-        self.send_ws({"method": "Page.enable"})
-        #self.send_ws({"method": "Runtime.enable"})
-        #self.send_ws({"method": "DOM.enable"})
-        #logger.debug('Page.enable on ' + self.tab_data['webSocketDebuggerUrl'])
+
+        self.rdp.Page.enable()
+
+        #self.rdp.Network.enable(maxTotalBufferSize=0, maxResourceBufferSize=0, maxPostDataSize=0)
+        self.rdp.Debugger.enable()
+        #self.rdp.Debugger.setSkipAllPauses(skip=True)
+        self.rdp.DOMDebugger.setEventListenerBreakpoint(eventName='playing')
 
     def replace_devtools(self):
         self._replaced_with_devtools = False
@@ -343,10 +366,18 @@ class AutoTab(object):
         #self.auto.recording.is_open()
         logger.debug('Queue Next')
 
+        try:
+            if self._next_ge:
+                self._next_ge.kill()
+                self._next_ge = None
+        except:
+            pass
+
         if now:
-            gevent.spawn(self.wait_queue)
+            self._next_ge = gevent.spawn(self.wait_queue)
         else:
-            gevent.spawn_later(self.browser.NEW_PAGE_WAIT_TIME, self.wait_queue)
+            self._next_ge = gevent.spawn_later(self.browser.NEW_PAGE_WAIT_TIME,
+                                               self.wait_queue)
 
     def already_recorded(self, url):
         if not self.index_check_url:
@@ -409,8 +440,9 @@ class AutoTab(object):
             self.hops = url_req.get('hops', 0)
             self.curr_url = url_req['url']
 
-            self.send_ws({"method": "Page.navigate", "params": {"url": self.curr_url}},
-                         save_frame)
+            #self.send_ws({"method": "Page.navigate", "params": {"url": self.curr_url}},
+            #             save_frame)
+            self.rdp.Page.navigate(url=self.curr_url, callback=save_frame)
 
             self.listener('tab_added', self.browser.reqid, self.tab_id, url_req['url'])
 
@@ -448,12 +480,16 @@ class AutoTab(object):
                     elif method == 'Inspector.detached':
                         self.handle_InspectorDetached(resp)
 
+                    elif method == 'Debugger.paused':
+                        self.handle_DebuggerPaused(resp)
+                        self.rdp.Debugger.resume()
+
                 except Exception as re:
                     logger.warning('*** Error handling response')
                     logger.warning(str(re))
 
                 # LOG ALL ERROR MESSAGES
-                if 'error' in resp:
+                if DEBUG_ALL or 'error' in resp:
                     logger.debug(str(resp))
 
         except Exception as e:
@@ -473,7 +509,7 @@ class AutoTab(object):
     def load_links(self):
         if not self.hops:
             self.queue_next()
-            return
+            return False
 
         def handle_links(resp):
             links = json.loads(resp['result']['result']['value'])
@@ -502,6 +538,13 @@ class AutoTab(object):
                 logger.debug(str(e))
         else:
             logger.debug('No Callback found for: ' + str(resp['id']))
+
+    def handle_DebuggerPaused(self, resp):
+        #logger.debug('*** PAUSED')
+        #logger.debug(str(resp))
+
+        if resp['params']['data']['eventName'] == 'listener:playing':
+            self.queue_next(now=True)
 
     def handle_InspectorDetached(self, resp):
         if resp['params']['reason'] == 'replaced_with_devtools':
@@ -564,7 +607,8 @@ class AutoTab(object):
             logger.debug('WS Already Closed')
 
     def eval(self, expr, callback=None):
-        self.send_ws({"method": "Runtime.evaluate", "params": {"expression": expr}}, callback)
+        #self.send_ws({"method": "Runtime.evaluate", "params": {"expression": expr}}, callback)
+        self.rdp.Runtime.evaluate(expression=expr, callback=callback)
 
     def close(self):
         try:
