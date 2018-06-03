@@ -39,7 +39,9 @@ class Main(object):
 
     REDIS_URL = 'redis://redis/2'
 
-    NUM_BROWSERS = 1
+    BROWSER_IMAGE = 'chrome:60'
+
+    NUM_BROWSERS = 4
 
     AUTH_CODE = os.environ.get('AUTH_CODE', '')
 
@@ -111,6 +113,7 @@ class Main(object):
 
         pywb_env = {'SCALAR_HOST': 'http://' + scalar_host,
                     'PYWB_FILTER_PREFIX': filter_url,
+                    'MEDIA_PREFIX': url + '/media',
                     'MEDIA_Q': media_q,
                     'BROWSER_Q': browser_q,
                    }
@@ -147,7 +150,7 @@ class Main(object):
                 print(e)
                 print('Waiting for pywb init')
                 time.sleep(5)
-                self.send_ws(ws, {'msg': 'Waiting for server init'})
+                self.send_ws(ws, {'msg': 'Waiting for data copy'})
 
     def list_images(self):
         try:
@@ -319,7 +322,11 @@ class Main(object):
             self.redis.rpush(cinfo['media_q'], data)
 
     def send_ws(self, ws, data):
-        ws.send(json.dumps(data))
+        try:
+            ws.send(json.dumps(data))
+        except:
+            print('WS Error')
+            print(json.dumps(data))
 
     def load_existing_archive(self, ws, image_name):
         self.send_ws(ws, {'msg': 'Launching Image: {0}'.format(image_name)})
@@ -375,10 +382,10 @@ class Main(object):
         ids = []
         first = True
 
+        tab_opts = {'use_debugger': True}
+
         if book.cookies:
-            tab_opts = {'cookies': book.cookies}
-        else:
-            tab_opts = {}
+            tab_opts['cookies'] = book.cookies
 
         # add base url also
         self.redis.rpush(cinfo['browser_q'], json.dumps({'url': url}))
@@ -422,7 +429,7 @@ class Main(object):
             cdata['url'] = url
 
         browser = AutoBrowser(redis=self.redis,
-                              browser_image='chrome:60',
+                              browser_image=self.BROWSER_IMAGE,
                               browser_q=browser_q,
                               cdata=cdata,
                               tab_class=tab_class,
@@ -615,7 +622,7 @@ function do_import() {
             self.eval(self.LOGIN_SCRIPT)
 
         elif self.stage == self.LOGGED_IN_REDIR:
-            print('LOGGED_IN_REDIR', self.import_tab_url)
+            print('LOGGED_IN_REDIR', self.curr_url, self.import_tab_url)
 
             self.navigate_to(self.import_tab_url, self.LOGGED_IN)
 

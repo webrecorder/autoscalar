@@ -12,6 +12,18 @@ collections:
               index: ./collections/store/indexes/
               archive_paths: ./collections/store/archive/
 
+    patch:
+        sequence:
+            - name: scalar
+              index: live_filter
+
+            - name: store
+              index: ./collections/store/indexes/
+              archive_paths: ./collections/store/archive/
+
+            - name: live
+              index: $live
+
 recorder: live
 
 autoindex: 30

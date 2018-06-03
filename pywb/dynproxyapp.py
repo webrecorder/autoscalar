@@ -44,14 +44,18 @@ class PrefixFilterIndexSource(LiveIndexSource):
         self.filter_prefix = os.environ.get('PYWB_FILTER_PREFIX', '')
         self.redirect_prefix = os.environ.get('SCALAR_HOST', '')
 
+        self.media_prefix = os.environ.get('MEDIA_PREFIX')
+
     def get_load_url(self, params):
         url = params['url']
 
         if self.filter_prefix:
-            #print('TESTING: ' + url)
             if url.startswith(self.filter_prefix):
+                if url.startswith(self.media_prefix) and os.path.basename(url).endswith(('.jpg', '.png')):
+                    raise NotFoundException('Skipping, Likely Media Same Filename ' + url)
+
                 url = self.redirect_prefix + url[len(self.filter_prefix):]
-                #print('NEW URL: ' + url)
+
             else:
                 print('Skipping')
                 raise NotFoundException('Skipping: ' + url)

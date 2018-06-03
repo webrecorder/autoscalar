@@ -1,7 +1,7 @@
 import requests
 import os
 import re
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urljoin
 
 
 # ============================================================================
@@ -15,6 +15,8 @@ class ScalarBook(object):
     SOURCE_LOC = 'http://simile.mit.edu/2003/10/ontologies/artstor#sourceLocation'
 
     THUMB_URL = 'http://simile.mit.edu/2003/10/ontologies/artstor#thumbnail'
+
+    BG_URL = 'http://scalar.usc.edu/2012/01/scalar-ns#background'
 
     TITLE_FIELD = 'http://purl.org/dc/terms/title'
 
@@ -44,6 +46,9 @@ class ScalarBook(object):
 
         self.external_urls = []
         self.media_urls = []
+
+        self.thumb_url = ''
+        self.bg_url = ''
 
         self.new_url = None
         self.cookies = None
@@ -139,8 +144,14 @@ class ScalarBook(object):
 
             self.title = base_info.get(self.TITLE_FIELD)[0]['value']
             self.desc = base_info.get(self.DESC_FIELD)[0]['value']
+
+            self.thumb_url = urljoin(url + '/', base_info.get(self.THUMB_URL)[0]['value'])
+            self.bg_url = urljoin(url + '/', base_info.get(self.BG_URL)[0]['value'])
         except:
             pass
+
+        print('THUMB', self.thumb_url)
+        print('BG', self.bg_url)
 
         # path
         parts = urlsplit(self.base_url)
@@ -181,6 +192,12 @@ class ScalarBook(object):
 
             self.parse_media(data)
             start += num_results
+
+        if self.bg_url:
+            self.media_urls.append(self.bg_url)
+
+        if self.thumb_url:
+            self.media_urls.append(self.thumb_url)
 
         print('Done')
         print('')

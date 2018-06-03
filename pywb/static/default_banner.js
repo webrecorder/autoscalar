@@ -67,7 +67,7 @@ This file is part of pywb, https://github.com/webrecorder/pywb
         }
 
         if (title) {
-            capture_str = '"' + title + '"';
+            capture_str = title;
         }  else {
             capture_str = url;
         }

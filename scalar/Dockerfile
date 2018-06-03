@@ -18,7 +18,7 @@ RUN a2enmod rewrite
 # set root
 ENV SCALAR_ROOT=/var/www/html
 
-RUN git clone https://github.com/anvc/scalar.git /app
+RUN git clone https://github.com/anvc/scalar.git --branch v2.1.9 /app
 
 RUN git clone https://github.com/Michael628/scalar-book-transfer-tool.git /app/system/application/plugins/transfer
 
@@ -59,13 +59,7 @@ ENV MYSQL_DATABASE=scalar
 ENV MYSQL_INITDB_SKIP_TZINFO=1
 
 # run script
-COPY restart-run.sh /tmp/
-
-COPY run.sh /tmp/
-
-COPY import.sh /tmp/
-
-COPY commit.sh /tmp/
+COPY *.sh /tmp/
 
 CMD /tmp/run.sh
 

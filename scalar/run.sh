@@ -1,10 +1,6 @@
 #!/bin/bash
 
-/tmp/restart-run.sh docker-entrypoint.sh mysqld --verbose &
-
-if [ -f /collections.warc.gz ]; then
-    tar xvfz /collections.warc.gz -C /
-fi
+/tmp/copy-volume.sh &
 
 apache2-foreground
 

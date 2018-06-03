@@ -41,8 +41,8 @@ class CaptureWorker(object):
 
         try:
             print('*** Crawl Worker Loading: ' + res['url'])
-            req_url = self.host_prefix + '/store/record/id_/' + res['url']
-            with self.sesh.get(req_url, stream=True) as r:
+            req_url = self.host_prefix + '/store/record/oe_/' + res['url']
+            with self.sesh.get(req_url, stream=True, allow_redirects=True) as r:
                 # requeue with 'html_url' if current page may be html
                 if res.get('html_url'):
                     if self.maybe_html(r.headers.get('Content-Type', ''), res['url']):

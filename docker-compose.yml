@@ -9,6 +9,9 @@ services:
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
 
+        environment:
+            - AUTH_CODE=""
+
 
     redis:
         image: redis:3.2.4
@@ -22,9 +25,9 @@ services:
             - REDIS_BROWSER_URL=redis://redis/0
             - CLUSTER_NAME=scalar_shepherd
             - NETWORK_NAME=scalar_default
-            - IDLE_TIMEOUT=600
+            - IDLE_TIMEOUT=6000
             #- AUDIO_TYPE=opus
-            - CONTAINER_EXPIRE_SECS=4200
+            - CONTAINER_EXPIRE_SECS=42000
 
             #- PROXY_HOST=pywb
             - PROXY_PORT=8080

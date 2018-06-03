@@ -1,6 +1,7 @@
-//__wr_media_done = false;
 
 (function() {
+  __wr_media_done = false;
+
   document.addEventListener("readystatechange", init);
 
   function init() {
@@ -43,7 +44,7 @@
     function detect_play(elem) {
       elem.addEventListener("playing", function() {
         console.log("playing!");
-        //__wr_media_done = true;
+        __wr_media_done = true;
       });
 
       if (elem.paused) {

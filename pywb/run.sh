@@ -10,6 +10,13 @@ if [ ! -d /data/warcs/collections ]; then
   cp -r /app/static/* /data/warcs/static/
 
 else
+  #mkdir -p /data/warcs/collections/store
+  #mkdir -p /data/warcs/collections/store/archive
+  #mkdir -p /data/warcs/collections/store/indexes
+
+  mkdir -p /data/warcs/static/
+  cp -r /app/static/default_banner.* /data/warcs/static/
+
   # replay, wait for volume to be filled with data
   while [ ! -d /data/warcs/collections/store/indexes ]
   do
@@ -17,8 +24,6 @@ else
     sleep 2
   done
 
-  mkdir -p /data/warcs/static/
-  cp -r /app/static/default_banner.* /data/warcs/static/
 fi
 
 #python -u /app/captureworker.py &
