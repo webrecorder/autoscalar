@@ -30,6 +30,8 @@ class ScalarBook(object):
 
     VERSION_FIELD = 'http://scalar.usc.edu/2012/01/scalar-ns#version'
 
+    CONTENT_FIELD = 'http://rdfs.org/sioc/ns#content'
+
     EXT_TITLE = re.compile('([^<]+)[^:]+:\s*([^<]+)')
 
     def __init__(self, base_url, internal_url='',
@@ -199,11 +201,23 @@ class ScalarBook(object):
         if self.thumb_url:
             self.media_urls.append(self.thumb_url)
 
+        self.parse_content()
+
         print('Done')
         print('')
         print('\n'.join([u + ' ' + u2 for u, u2 in self.external_urls]))
         print('NUM EXTERNAL: ' + str(len(self.external_urls)))
         print('NUM MEDIA: ' + str(len(self.media_urls)))
+
+    def parse_content(self):
+        self.pages = self.get_book_rdf_json(self.base_url, suffix='/rdf/instancesof/page', assert_url=False)
+
+        for key, page in self.pages.items():
+            text = page.get(self.CONTENT_FIELD)
+
+            if text and '<iframe' in text[0]['value']:
+                self.external_urls.append((key, key))
+                print('IFRAME found: ' + key)
 
     def parse_media(self, data):
         parent_dir = os.path.dirname(self.base_url)

@@ -17,14 +17,14 @@ services:
         image: redis:3.2.4
 
     shepherd:
-        image: oldwebtoday/shepherd
+        image: oldwebtoday/shepherd:scalar_proto
 
         command: uwsgi uwsgi.ini --mount /=/shepherd/main.py
 
         environment:
             - REDIS_BROWSER_URL=redis://redis/0
             - CLUSTER_NAME=scalar_shepherd
-            - NETWORK_NAME=scalar_default
+            - NETWORK_NAME=auto_scalar_default
             - IDLE_TIMEOUT=6000
             #- AUDIO_TYPE=opus
             - CONTAINER_EXPIRE_SECS=42000

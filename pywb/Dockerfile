@@ -1,4 +1,4 @@
-FROM webrecorder/pywb
+FROM webrecorder/pywb:scalar_proto
 
 USER root
 RUN pip install fakeredis redis

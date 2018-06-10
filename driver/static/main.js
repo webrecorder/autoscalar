@@ -130,7 +130,7 @@ $(function() {
 
       console.log(data);
 
-      $("#status-new").text("Preservation Canceled");
+      $("#status-new").text("Archiving Canceled");
       $("#import-browser")[0].src = "about:blank";
 
       for (var i = 0; i < 4; i++) {
