@@ -35,7 +35,7 @@ class Main(object):
 
     VOL_PREFIX = 'dynpreserve-'
 
-    NETWORK_NAME = 'auto_scalar_default'
+    NETWORK_NAME = 'autoscalar_default'
 
     REDIS_URL = 'redis://redis/2'
 

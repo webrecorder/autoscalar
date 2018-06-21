@@ -24,7 +24,7 @@ services:
         environment:
             - REDIS_BROWSER_URL=redis://redis/0
             - CLUSTER_NAME=scalar_shepherd
-            - NETWORK_NAME=auto_scalar_default
+            - NETWORK_NAME=autoscalar_default
             - IDLE_TIMEOUT=6000
             #- AUDIO_TYPE=opus
             - CONTAINER_EXPIRE_SECS=42000
