@@ -116,6 +116,7 @@ class Main(object):
                     'MEDIA_PREFIX': url + '/media',
                     'MEDIA_Q': media_q,
                     'BROWSER_Q': browser_q,
+                    'START_URL': url + '/index',
                    }
 
         pywb = self.client.containers.run(self.PYWB_IMAGE,
@@ -195,7 +196,6 @@ class Main(object):
 
             for browser in browser_ids:
                 res = requests.get('http://shepherd:9020/remove_browser?reqid=' + browser)
-                print(res.text)
 
         except Exception as e:
             print(e)
@@ -238,7 +238,6 @@ class Main(object):
             time.sleep(1.0)
 
     def new_scalar_archive(self, ws, url, image_name='', email='', password='', authcode=''):
-        print(authcode)
         if authcode != self.AUTH_CODE:
             print('invalid authcode')
             self.send_ws(ws, {'msg': 'Sorry, the passcode is not valid. This Demo is not yet publicly available. Please contact us at support@webrecorder.io to request a passcode', 'error': 'auth'})

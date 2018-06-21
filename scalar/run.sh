@@ -1,6 +1,6 @@
 #!/bin/bash
 
-/tmp/copy-volume.sh &
+/tmp/copy-volume.sh
 
 apache2-foreground
 

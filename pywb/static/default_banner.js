@@ -74,7 +74,7 @@ This file is part of pywb, https://github.com/webrecorder/pywb
 
         capture_str = "<b id='title_or_url'>" + capture_str + "</b>";
 
-        capture_str += "<i>Preserved Scalar Site&nbsp;</i>";
+        capture_str += "<i>Archived Scalar Site&nbsp;</i>";
 
         //capture_str += ts_to_date(ts, true);
         document.querySelector("#_wb_capture_info").innerHTML = capture_str;

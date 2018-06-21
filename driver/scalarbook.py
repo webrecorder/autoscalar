@@ -32,6 +32,12 @@ class ScalarBook(object):
 
     CONTENT_FIELD = 'http://rdfs.org/sioc/ns#content'
 
+    COMPOSITE_TYPE = 'http://scalar.usc.edu/2012/01/scalar-ns#Composite'
+
+    TYPE_KEY = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+
+    IS_LIVE = 'http://scalar.usc.edu/2012/01/scalar-ns#isLive'
+
     EXT_TITLE = re.compile('([^<]+)[^:]+:\s*([^<]+)')
 
     def __init__(self, base_url, internal_url='',
@@ -138,11 +144,14 @@ class ScalarBook(object):
 
         base_info = data[self.base_url]
 
+        # main book rdf
         try:
             for n, v in data.items():
                 if self.NAME_FIELD in v:
                     self.name = v[self.NAME_FIELD][0]['value']
-                    break
+
+                if self.IS_LIVE in v:
+                    self.external_urls.append((n, n))
 
             self.title = base_info.get(self.TITLE_FIELD)[0]['value']
             self.desc = base_info.get(self.DESC_FIELD)[0]['value']
@@ -151,9 +160,6 @@ class ScalarBook(object):
             self.bg_url = urljoin(url + '/', base_info.get(self.BG_URL)[0]['value'])
         except:
             pass
-
-        print('THUMB', self.thumb_url)
-        print('BG', self.bg_url)
 
         # path
         parts = urlsplit(self.base_url)
@@ -202,6 +208,12 @@ class ScalarBook(object):
             self.media_urls.append(self.thumb_url)
 
         self.parse_content()
+
+        cover_page = os.path.dirname(self.base_url) + '/'
+
+        print('COVER PAGE: ' + cover_page)
+
+        self.external_urls.append((cover_page, cover_page))
 
         print('Done')
         print('')
