@@ -153,7 +153,7 @@ class Main(object):
                 time.sleep(5)
                 self.send_ws(ws, {'msg': 'Waiting for data copy'})
 
-    def list_images(self):
+    def list_images(self, single_image=None):
         try:
             images = self.client.images.list(name=self.USER_IMAGE_PREFIX)
         except Exception as e:
@@ -164,7 +164,12 @@ class Main(object):
                    'size': image.attrs['Size'],
                   } for image in images]
 
-        return {'images': sorted(images, key=lambda x: x.get('name'))}
+        if not single_image:
+            image_list = sorted(images, key=lambda x: x.get('name'))
+            return {'images': image_list or []}
+        else:
+            image_list = [image for image in images if image.get('name') == single_image]
+            return {'images': image_list or [], 'single_image': True}
 
     def delete_group(self, id):
         id_key = self.GSESH.format(id)
@@ -442,14 +447,17 @@ class Main(object):
         @self.app.get('/')
         @jinja2_view('index.html')
         def index():
-            res = self.list_images()
-            return {'images': res.get('images', [])}
+            return self.list_images()
+
+        @self.app.get('/view/<image>')
+        @jinja2_view('index.html')
+        def single_image(image):
+            return self.list_images(single_image=image)
 
         @self.app.get('/launch')
         @jinja2_view('launch.html')
         def launch():
-            res = self.list_images()
-            return {'images': res.get('images', [])}
+            return self.list_images()
 
         @self.app.get('/archive/list/images')
         def list_images():

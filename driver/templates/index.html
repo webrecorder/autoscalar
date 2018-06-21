@@ -11,6 +11,7 @@
 
           <small><a href="https://docs.google.com/presentation/d/1_AoCavSoZRFZp6KNpRcYfhJe9am4XCJIWN26mP4Haro/edit?usp=sharing" target="_blank">How does it work?</a></small>
         </div>
+        {% if not single_image %}
         <ul class="nav nav-tabs card-header-tabs" role="tablist">
           <li class="nav-item">
             <a class="nav-link active" role="tab" id="launch-link" data-toggle="tab" href="#launch">Launch Archived Scalar Site</a>
@@ -19,6 +20,7 @@
             <a class="nav-link" role="tab" id="new-link" data-toggle="tab" href="#new">Archive New Scalar Site</a>
           </li>
         </ul>
+        {% endif %}
       </div>
 
       <!-- LAUNCH -->
@@ -27,14 +29,21 @@
           <form id="launch ">
             <div class="row">
               <div class="col-md-1">
+                {% if not single_image %}
                 <label class="mt-2 text-left" style="display: inline-block; min-width: 300px" for="run-image-select">Run Image:</label>
+                {% endif %}
               </div>
               <div class="col-md-6">
+                {% if images|length == 1 and single_image %}
+                <b class="single-image-name">{{ images[0].name }}</b>
+                <input id="run-image-select" type="hidden" value="{{ images[0].name }}">
+                {% else %}
                 <select id="run-image-select" class="custom-select form-control mr-3" >
                   {% for image in images %}
                   <option value="{{ image.name }}">{{ image.name }}</option>
                   {% endfor %}
                 </select>
+                {% endif %}
               </div>
             </div>
             <div class="row mt-2">
