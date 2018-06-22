@@ -18,6 +18,7 @@ from pywb.warcserver.index.indexsource import LiveIndexSource, NotFoundException
 class DynProxyPywb(FrontEndApp):
     def __init__(self, config_file='./config.yaml', custom_config=None):
         register_source(PrefixFilterIndexSource)
+        register_source(FileFilterIndexSource)
 
         super(DynProxyPywb, self).__init__(config_file=config_file,
                                            custom_config=custom_config)
@@ -44,21 +45,12 @@ class PrefixFilterIndexSource(LiveIndexSource):
         self.filter_prefix = os.environ.get('PYWB_FILTER_PREFIX', '')
         self.redirect_prefix = os.environ.get('SCALAR_HOST', '')
 
-        self.exact_match = self.filter_prefix + '/'
-        self.start_url = os.environ.get('START_URL', '')
-
-        self.media_prefix = os.environ.get('MEDIA_PREFIX')
-
     def get_load_url(self, params):
         url = params['url']
 
         if self.filter_prefix:
-            if url.startswith(self.filter_prefix) and url != self.exact_match and url != self.start_url:
-                if url.startswith(self.media_prefix) and os.path.basename(url).endswith(('.jpg', '.png')):
-                    raise NotFoundException('Skipping, Likely Media Same Filename ' + url)
-
+            if  url.startswith(self.filter_prefix):
                 url = self.redirect_prefix + url[len(self.filter_prefix):]
-
             else:
                 print('Skipping')
                 raise NotFoundException('Skipping: ' + url)
@@ -75,6 +67,44 @@ class PrefixFilterIndexSource(LiveIndexSource):
             return cls()
 
         return None
+
+
+#=============================================================================
+class FileFilterIndexSource(FileIndexSource):
+    def __init__(self, filename):
+        super(FilteredFileIndexSource, self).__init__(filename)
+
+        self.filter_prefix = os.environ.get('PYWB_FILTER_PREFIX', '')
+        self.base_url = self.filter_prefix + '/'
+
+        self.start_url = os.environ.get('START_URL', '')
+
+        self.media_prefix = os.environ.get('MEDIA_PREFIX')
+
+    def load_index(self, params):
+        if not self.use_webarchive(params['url']):
+            raise NotFoundException('Skipping: ' + url)
+
+        return super(FileFilterIndexSource, self).load_index(params)
+
+    def use_webarchive(self, url):
+        if url == self.base_url or url == self.start_url:
+            return True
+
+        if url.startswith(self.media_prefix):
+            return True
+
+        if url.startswith(self.filter_prefix):
+            return False
+
+        return True
+
+    @classmethod
+    def init_from_config(cls, config):
+        if config['type'] != 'file_filter':
+            return
+
+        return cls.init_from_string(config['path'])
 
 
 #=============================================================================

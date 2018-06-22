@@ -5,6 +5,13 @@ collections:
 
     combined:
         sequence:
+            - name: store_filter
+              index:
+                type: file_filter
+                path: ./collections/store/indexes/
+
+              archive_paths: ./collections/store/archive/
+
             - name: scalar
               index: live_filter
 
