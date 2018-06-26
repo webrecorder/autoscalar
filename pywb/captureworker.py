@@ -41,19 +41,37 @@ class CaptureWorker(object):
 
         try:
             print('*** Crawl Worker Loading: ' + res['url'])
-            req_url = self.host_prefix + '/store/record/oe_/' + res['url']
-            with self.sesh.get(req_url, stream=True, allow_redirects=True) as r:
-                # requeue with 'html_url' if current page may be html
-                if res.get('html_url'):
-                    if self.maybe_html(r.headers.get('Content-Type', ''), res['url']):
-                        res['url'] = res['html_url']
-                        print('REQUEING',  res['url'])
-                        self.redis.rpush(self.browser_q, json.dumps(res))
 
+            # first check head request
+            head_response = self.sesh.head(res['url'], allow_redirects=True)
+
+            if self.requeue(res, head_response):
+                return
+
+            req_url = self.host_prefix + '/store/record/oe_/' + res['url']
+
+            with self.sesh.get(req_url, stream=True, allow_redirects=True) as r:
+                self.requeue(res, r)
         except:
             traceback.print_exc()
 
+    def requeue(self, res, r):
+        # requeue with 'html_url' if current page may be html
+        if not res.get('html_url'):
+            return False
+
+        if self.maybe_html(r.headers.get('Content-Type'), res['url']):
+            print('REQUEING',  res['url'])
+            self.redis.rpush(self.browser_q, json.dumps(res))
+            res['url'] = res['html_url']
+            print('QUEING',  res['url'])
+            self.redis.rpush(self.browser_q, json.dumps(res))
+            return True
+
+        return False
+
     def maybe_html(self, content_type, url):
+        content_type = content_type or ''
         content_type = content_type.split(';', 1)[0].rstrip()
         print('MIME', content_type)
 

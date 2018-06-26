@@ -8,7 +8,7 @@ collections:
             - name: store_filter
               index:
                 type: file_filter
-                path: ./collections/store/indexes/
+                path: ./collections/store/indexes/autoindex.cdxj
 
               archive_paths: ./collections/store/archive/
 

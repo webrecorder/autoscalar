@@ -11,7 +11,8 @@ from pywb.apps.cli import ReplayCli
 from werkzeug.routing import Map, Rule
 from pywb.apps.wbrequestresponse import WbResponse
 from pywb.warcserver.warcserver import register_source
-from pywb.warcserver.index.indexsource import LiveIndexSource, NotFoundException
+from pywb.warcserver.index.indexsource import LiveIndexSource, FileIndexSource, NotFoundException
+from pywb.recorder.filters import SkipDefaultFilter
 
 
 # ============================================================================
@@ -36,6 +37,11 @@ class DynProxyPywb(FrontEndApp):
             return prefix + url
         else:
             return super(DynProxyPywb, self).proxy_route_request(url, environ)
+
+
+#=============================================================================
+class SkipHtmlFilter(SkipDefaultFilter):
+    pass
 
 
 #=============================================================================
@@ -72,7 +78,7 @@ class PrefixFilterIndexSource(LiveIndexSource):
 #=============================================================================
 class FileFilterIndexSource(FileIndexSource):
     def __init__(self, filename):
-        super(FilteredFileIndexSource, self).__init__(filename)
+        super(FileFilterIndexSource, self).__init__(filename)
 
         self.filter_prefix = os.environ.get('PYWB_FILTER_PREFIX', '')
         self.base_url = self.filter_prefix + '/'
@@ -83,7 +89,7 @@ class FileFilterIndexSource(FileIndexSource):
 
     def load_index(self, params):
         if not self.use_webarchive(params['url']):
-            raise NotFoundException('Skipping: ' + url)
+            raise NotFoundException('Skipping: ' + params['url'])
 
         return super(FileFilterIndexSource, self).load_index(params)
 
