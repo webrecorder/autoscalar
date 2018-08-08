@@ -69,10 +69,16 @@ class Main(object):
     def c_hostname(self, container):
         return container.id[:12]
 
-    def launch_group(self, url=None, image_name=None):
+    def launch_group(self, url=None, image_name=None, imagename_access=False):
         id = self.sesh_id()
         id_key = self.GSESH.format(id)
         print('Group Id: ' + id)
+
+        # create an alias for the image name to be accessed directly
+        if imagename_access:
+            aliases = ['user-' + image_name]
+        else:
+            aliases = None
 
         if image_name:
             image_name = self.USER_IMAGE.format(image_name)
@@ -122,9 +128,12 @@ class Main(object):
         pywb = self.client.containers.run(self.PYWB_IMAGE,
                                           detach=True,
                                           auto_remove=True,
-                                          network=self.NETWORK_NAME,
+                                          #network=self.NETWORK_NAME,
                                           environment=pywb_env,
                                           volumes=volumes)
+
+        network = self.client.networks.get(self.NETWORK_NAME)
+        network.connect(pywb, aliases=aliases)
 
         pywb_host = self.c_hostname(pywb)
 
@@ -316,10 +325,14 @@ class Main(object):
         book.load_media()
 
         for url, html_url in book.external_urls:
-            data = json.dumps({'url': url, 'html_url': html_url, 'hops': 0})
-            self.redis.rpush(cinfo['media_q'], data)
-            #data = json.dumps({'url': html_url, 'hops': 0})
-            #self.redis.rpush(cinfo['browser_q'], data)
+            # experimental optimization: queue for captureworker to examine first
+            # data = json.dumps({'url': url, 'html_url': html_url, 'hops': 0})
+            # self.redis.rpush(cinfo['media_q'], data)
+
+            # queue directly to browser
+            data = json.dumps({'url': html_url, 'hops': 0})
+            print('Q', data)
+            self.redis.rpush(cinfo['browser_q'], data)
 
         for url in book.media_urls:
             data = json.dumps({'url': url})
@@ -491,6 +504,19 @@ class Main(object):
             ws = request.environ['wsgi.websocket']
             self.load_existing_archive(ws, image_name)
             ws.close()
+
+        # make instance acccessible by name directly
+        @self.app.get('/archive/launch-named/<image_name>')
+        def launch_named_image(image_name):
+            #ws = request.environ['wsgi.websocket']
+            #self.send_ws(ws, {'msg': 'Launching Image: {0}'.format(image_name)})
+
+            cinfo = self.launch_group(image_name=image_name, imagename_access=True)
+            if 'error' in cinfo:
+                print(cinfo)
+                return {'error': cinfo['error']}
+
+            return {'success': image_name}
 
         @self.app.get('/static/<filename>')
         def server_static(filename):

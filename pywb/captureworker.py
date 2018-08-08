@@ -61,11 +61,11 @@ class CaptureWorker(object):
             return False
 
         if self.maybe_html(r.headers.get('Content-Type'), res['url']):
-            print('REQUEING',  res['url'])
-            self.redis.rpush(self.browser_q, json.dumps(res))
-            res['url'] = res['html_url']
-            print('QUEING',  res['url'])
-            self.redis.rpush(self.browser_q, json.dumps(res))
+            #print('REQUEING',  res['url'])
+            #self.redis.rpush(self.browser_q, json.dumps(res))
+            new_query = {'url': res['html_url'], 'hops': 0}
+            print('QUEING',  new_query)
+            self.redis.rpush(self.browser_q, json.dumps(new_query))
             return True
 
         return False

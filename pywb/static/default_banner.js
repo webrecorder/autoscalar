@@ -76,6 +76,8 @@ This file is part of pywb, https://github.com/webrecorder/pywb
 
         capture_str += "<i>Archived Scalar Site&nbsp;</i>";
 
+        capture_str += "&nbsp;<a class='info-link' target='_blank' href='https://docs.google.com/presentation/d/1_AoCavSoZRFZp6KNpRcYfhJe9am4XCJIWN26mP4Haro/edit#slide=id.g39f46cab1b_0_161'>(How does it work?)</a>";
+
         //capture_str += ts_to_date(ts, true);
         document.querySelector("#_wb_capture_info").innerHTML = capture_str;
     }

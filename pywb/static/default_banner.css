@@ -36,6 +36,11 @@
     height: 44px !important;
 }
 
+.info-link {
+    color: white;
+    font-size: 14px;
+}
+
 #wb_iframe_div
 {
     position: absolute;
