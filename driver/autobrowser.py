@@ -29,7 +29,8 @@ class AutoBrowser(object):
 
     WAIT_TIME = 0.5
 
-    NEW_PAGE_WAIT_TIME = 40.0
+    NETWORK_IDLE_WAIT_TIME = 15.0
+    VIDEO_START_WAIT_TIME = 3.0
 
     def __init__(self, redis, browser_image, browser_q,
                  reqid=None, cdata=None, num_tabs=1,
@@ -333,18 +334,20 @@ class AutoTab(object):
             #self.send_ws({"method": "Network.setCookies", "params": {"cookies": cookies}}, cookies_resp)
             time.sleep(1.0)
 
+        # quene next url!
+        self._queue_next_time = 0
+        self.queue_next()
+
         gevent.spawn(self.recv_ws_loop)
 
-        # quene next url!
-        self._next_ge = None
-        self.queue_next()
+        gevent.spawn(self.queue_next_loop)
 
     def _init_ws(self):
         self.ws = websocket.create_connection(self.tab_data['webSocketDebuggerUrl'])
 
         self.rdp.Page.enable()
 
-        #self.rdp.Network.enable(maxTotalBufferSize=0, maxResourceBufferSize=0, maxPostDataSize=0)
+        self.rdp.Network.enable(maxTotalBufferSize=0, maxResourceBufferSize=0)
         if self.use_debugger:
             self.rdp.Debugger.enable()
             self.rdp.DOMDebugger.setEventListenerBreakpoint(eventName='playing')
@@ -361,27 +364,17 @@ class AutoTab(object):
             except Exception as e:
                 logger.debug(str(e))
 
+    def queue_next_loop(self):
+        while self.browser.running:
+            if self._queue_next_time > 0 and time.time() >= self._queue_next_time:
+                self._queue_next_time = 0
+                self.load_next_url()
+
+            time.sleep(1.0)
+
     def queue_next(self, after=0):
-        self._behavior_done = False
-
-        # extend recording openness
-        #self.auto.recording.is_open()
-        logger.debug('Queue Next')
-
-        if after is None:
-            after = self.browser.NEW_PAGE_WAIT_TIME
-
-        try:
-            if self._next_ge:
-                self._next_ge.kill()
-                self._next_ge = None
-        except:
-            pass
-
-        if after == 0:
-            self._next_ge = gevent.spawn(self.wait_queue)
-        else:
-            self._next_ge = gevent.spawn_later(after, self.wait_queue)
+        #logger.debug('Network Idle, Waiting for {0} secs'.format(after))
+        self._queue_next_time = time.time() + after
 
     def already_recorded(self, url):
         if not self.index_check_url:
@@ -415,12 +408,13 @@ class AutoTab(object):
 
         return url
 
-    def wait_queue(self):
+    def load_next_url(self):
         # reset to empty url to indicate previous page is done
-        self.listener('tab_added', self.browser.reqid, self.tab_id, '')
+        self.listener('tab_load', self.browser.reqid, self.tab_id, '')
         url_req_data = None
         url_req = None
 
+        # find next url that should be visited
         while self.browser.running:
             name, url_req_data = self.redis.blpop(self.browser_q)
             url_req = json.loads(url_req_data)
@@ -448,7 +442,7 @@ class AutoTab(object):
             #             save_frame)
             self.rdp.Page.navigate(url=self.curr_url, callback=save_frame)
 
-            self.listener('tab_added', self.browser.reqid, self.tab_id, url_req['url'])
+            self.listener('tab_load', self.browser.reqid, self.tab_id, url_req['url'])
 
         except Exception as e:
             logger.error(' *** ' + str(e))
@@ -485,8 +479,11 @@ class AutoTab(object):
                         self.handle_InspectorDetached(resp)
 
                     elif method == 'Debugger.paused':
-                        if not self.handle_DebuggerPaused(resp):
-                            self.rdp.Debugger.resume()
+                        self.rdp.Debugger.resume()
+                        self.handle_DebuggerPaused(resp)
+
+                    elif method.startswith('Network.loadingFinished') or method.startswith('Network.loadingFailed'):
+                        self.queue_next(AutoBrowser.NETWORK_IDLE_WAIT_TIME)
 
                 except Exception as re:
                     logger.warning('*** Error handling response')
@@ -512,7 +509,7 @@ class AutoTab(object):
 
     def load_links(self):
         if not self.hops:
-            self.queue_next(after=self.browser.NEW_PAGE_WAIT_TIME)
+            self.queue_next()
             return False
 
         def handle_links(resp):
@@ -545,10 +542,7 @@ class AutoTab(object):
 
     def handle_DebuggerPaused(self, resp):
         if resp['params']['data']['eventName'] == 'listener:playing':
-            self.queue_next(after=10.0)
-            return False
-
-        return False
+            self.queue_next(AutoBrowser.VIDEO_START_WAIT_TIME)
 
     def handle_InspectorDetached(self, resp):
         if resp['params']['reason'] == 'replaced_with_devtools':
@@ -569,12 +563,7 @@ class AutoTab(object):
             self.queue_next()
             return
 
-        if False and self.autoscroll:
-            logger.debug('AutoScroll Start')
-            self.browser.send_pubsub({'ws_type': 'autoscroll'})
-            gevent.spawn_later(30, self.behavior_done)
-        else:
-            self.load_links()
+        self.load_links()
 
     def handle_frameNavigated(self, resp):
         frame = resp['params']['frame']
