@@ -29,6 +29,8 @@ $(function() {
   function init_launch_image_ui() {
     var name = $("#run-image-select").val();
 
+    $("#creation_date").text(new Date(all_images[name].created).toLocaleString());
+
     $("#image_download").attr("href", "/archive/download/" + name);
     $("#image_download").text(name + ".tar.gz");
 
@@ -185,6 +187,10 @@ $(function() {
 
       if (data.launch_url) {
         $("#launch_div").show();
+        if (!is_chrome()) {
+          $("#chrome_warn").show();
+        }
+
         $("#launch_url").attr("href", data.launch_url);
       }
 
@@ -235,4 +241,8 @@ function bytesToSize(bytes) {
     var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
     if (i == 0) return bytes + ' ' + sizes[i];
     return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
-};
+}
+
+function is_chrome() {
+ return /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+}

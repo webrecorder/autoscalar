@@ -171,6 +171,7 @@ class Main(object):
         images = [{'name': image.tags[0].rsplit(':', 1)[1],
                    'url': image.labels[self.START_URL_LABEL],
                    'size': image.attrs['Size'],
+                   'created': image.attrs['Created'],
                   } for image in images]
 
         if not single_image:

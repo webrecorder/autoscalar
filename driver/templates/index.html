@@ -48,12 +48,17 @@
             </div>
             <div class="row mt-2">
               <div class="col-md-1"></div>
+              <div class="col-md-10 text-left">Created:&nbsp;<span class="col-md-6" id="creation_date"></span>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-1"></div>
               <div class="col-md-10 text-left">Start Url:&nbsp;<b><span class="col-md-6" id="image_start_url"></span></b>
               </div>
             </div>
             <div class="row mt-2">
               <div class="col-md-1"></div>
-              <div class="col-md-10 text-left">Download:&nbsp;&nbsp;<a id="image_download" href="#">Download Image</a>
+              <div class="col-md-10 text-left">Download Docker Image:&nbsp;&nbsp;<a id="image_download" href="#">Download Image</a>
                 (<span id="image_size"></span>)
               </div>
             </div>
@@ -74,6 +79,7 @@
                 {% endif %}
                 <span id="launch_div" style="display: none">
                   <a id="launch_url" target="_blank" href="#">Browse in New Tab</a>
+                  <div id="chrome_warn" style="display: none; font-size: 12px"><i>Note: For best results and to more closely match the preserved browser, using Chrome is recommended when browsing in a new tab.</i></div>
                 </span>
               </div>
             </div>
