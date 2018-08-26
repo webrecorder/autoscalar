@@ -25,11 +25,11 @@ services:
             - REDIS_BROWSER_URL=redis://redis/0
             - CLUSTER_NAME=scalar_shepherd
             - NETWORK_NAME=autoscalar_default
-            - IDLE_TIMEOUT=6000
-            #- AUDIO_TYPE=opus
-            - CONTAINER_EXPIRE_SECS=42000
+            - IDLE_TIMEOUT=600
+            - CONTAINER_EXPIRE_SECS=3600
 
-            #- PROXY_HOST=pywb
+            - AUDIO_ALLOWED=true
+
             - PROXY_PORT=8080
             - PROXY_GET_CA=http://wsgiprox/download/pem
 

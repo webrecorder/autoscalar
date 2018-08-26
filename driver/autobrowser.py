@@ -23,7 +23,7 @@ class AutoBrowser(object):
     CDP_JSON_NEW = 'http://{ip}:9222/json/new'
 
     REQ_BROWSER_URL = 'http://shepherd:9020/request_browser/{browser}'
-    INIT_BROWSER_URL = 'http://shepherd:9020/init_browser?reqid={0}'
+    INIT_BROWSER_URL = 'http://shepherd:9020/init_browser?reqid={0}&audio=mp3'
 
     REQ_KEY = 'req:{id}'
 

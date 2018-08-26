@@ -189,7 +189,7 @@ $(function() {
       }
 
       if (data.reqid) {
-        init_browser(data.reqid, "#browser");
+        init_browser(data.reqid, "#browser", true);
       }
 
     };
@@ -224,8 +224,9 @@ $(function() {
 });
 
 
-function init_browser(reqid, dom_id) {
-  $(dom_id)[0].src = window.location.protocol + "//" + window.location.host + "/attach/" + reqid;
+function init_browser(reqid, dom_id, audio) {
+  audio = audio ? "1" : "0";
+  $(dom_id)[0].src = window.location.protocol + "//" + window.location.host + "/attach/" + reqid + "?audio=" + audio;
 }
 
 function bytesToSize(bytes) {
