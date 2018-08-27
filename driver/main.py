@@ -457,6 +457,30 @@ class Main(object):
 
         return browser
 
+    def download_container(self, image_name, filename):
+        image_name = self.USER_IMAGE.format(image_name)
+        container = self.client.containers.create(image_name,
+                                               command='bash',
+                                               entrypoint='/bin/bash -c',
+                                               auto_remove=True,
+                                               detach=True)
+
+        if filename:
+            out_gen, stat = container.get_archive(filename)
+        else:
+            out_gen = container.export()
+
+        def gen_cleanup():
+            try:
+                for chunk in out_gen:
+                    yield chunk
+
+            finally:
+                print('removing container')
+                container.remove(force=True, v=True)
+
+        return gen_cleanup()
+
     def init_routes(self):
         @self.app.get('/')
         @jinja2_view('index.html')
@@ -523,9 +547,8 @@ class Main(object):
         def server_static(filename):
             return static_file(filename, root='./static/')
 
-
-        @self.app.get('/archive/download/<image_name>')
-        def download(image_name):
+        @self.app.get('/archive/download_image/<image_name>')
+        def download_image(image_name):
             name = image_name
             image_name = self.USER_IMAGE.format(image_name)
             try:
@@ -535,7 +558,30 @@ class Main(object):
             except Exception as e:
                 return {'error': str(e)}
 
-            response.headers['Content-Disposition'] = 'attachment; filename="{0}.tar.gz"'.format(name)
+            response.content_type = 'application/tar'
+            response.headers['Content-Disposition'] = 'attachment; filename="{0}-image.tar"'.format(name)
+            return gen
+
+        @self.app.get('/archive/download_container/<image_name>')
+        def download_cont(image_name):
+            try:
+                gen = self.download_container(image_name, None)
+            except Exception as e:
+                return {'error': str(e)}
+
+            response.content_type = 'application/tar'
+            response.headers['Content-Disposition'] = 'attachment; filename="{0}-container.tar"'.format(image_name)
+            return gen
+
+        @self.app.get('/archive/download_warcs/<image_name>')
+        def download_warcs(image_name):
+            try:
+                gen = self.download_container(image_name, '/collections.warc.gz')
+            except Exception as e:
+                return {'error': str(e)}
+
+            response.content_type = 'application/tar'
+            response.headers['Content-Disposition'] = 'attachment; filename="{0}-webarchive-only.tar"'.format(image_name)
             return gen
 
 
