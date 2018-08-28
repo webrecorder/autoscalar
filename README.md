@@ -5,13 +5,14 @@ This repo represents the experimental prototype for automatically archiving and 
 The system combines three key concepts:
 - automated server software preservation (via a Docker image)
 - automated high-fidelity browser based web archiving
-- browser preservation (via Docker image, oldwebtoday system)
+- browser preservation (via Docker image, based on the http://oldweb.today system)
 
 A demo of this prototype is available at: https://scalar.webrecorder.net/
 
-Please note that this is still a prototype and may not work for all Scalar sites.
+Please note that this is still a prototype and may not work for all Scalar sites. In particular, custom script
+and custom style properties are not yet been exported. imported
 
-More high-level info about how this system works is available at: https://docs.google.com/presentation/d/1_AoCavSoZRFZp6KNpRcYfhJe9am4XCJIWN26mP4Haro/edit?usp=sharing
+An overview of how the system works is available [in these slides](https://docs.google.com/presentation/d/1_AoCavSoZRFZp6KNpRcYfhJe9am4XCJIWN26mP4Haro/edit#slide=id.g39f46cab1b_0_161)
 
 ## Installation
 
