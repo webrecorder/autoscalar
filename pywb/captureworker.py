@@ -29,6 +29,7 @@ class CaptureWorker(object):
         while self.running:
             try:
                 self.run()
+                time.sleep(0.5)
             except:
                 traceback.print_exc()
                 time.sleep(1)
